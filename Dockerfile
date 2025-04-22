@@ -5,7 +5,7 @@ COPY . .
 
 RUN cargo build --release
 
-EXPOSE 3000
+EXPOSE 4000
 CMD ["./target/release/software-backend"]
 
 

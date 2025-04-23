@@ -5,11 +5,15 @@ COPY . .
 RUN cargo build --release
 
 # Etapa 2: imagen final liviana
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 # Instalamos dependencias necesarias para ejecutar el binario
-RUN apt-get update && apt-get install -y libpq-dev postgresql-client && apt-get clean
-
+RUN apt-get update \
+    && apt-get install -y \
+    libpq-dev \
+    postgresql-client \
+    libssl3 \
+    && apt-get clean
 
 WORKDIR /app
 
@@ -25,4 +29,4 @@ EXPOSE 4000
 ENV DATABASE_URL=postgres://postgres:admin123@db:5432/oftalcrm
 
 # Llamamos el script que espera y luego ejecuta el backend
-CMD ["wait-for-db.sh", "db:5432", "--", "./software-backend"]
+CMD ["wait-for-db.sh", "db", "5432", "./software-backend"]

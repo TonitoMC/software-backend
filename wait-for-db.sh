@@ -7,6 +7,8 @@ shift 2
 echo "Esperando a que la base de datos esté lista en $host:$port..."
 
 until pg_isready -h "$host" -p "$port" -U postgres; do
+    >&2 echo "host: $host"
+    >&2 echo "port: $port"
   >&2 echo "La base de datos no está disponible aún — esperando..."
   sleep 1
 done

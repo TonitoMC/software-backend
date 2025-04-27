@@ -1,0 +1,8 @@
+# Rust image
+FROM rust:1.86.0 AS development
+
+RUN cargo install cargo-watch
+
+WORKDIR /src/app
+EXPOSE 4000
+CMD ["cargo", "watch", "-q", "-x", "run"]

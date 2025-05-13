@@ -1,8 +1,12 @@
-# Rust image
-FROM rust:1.86.0 AS development
+FROM golang:1.23.8 AS development
 
-RUN cargo install cargo-watch
+WORKDIR /app
 
-WORKDIR /src/app
+RUN go install github.com/air-verse/air@latest
+
+COPY go.mod go.sum ./
+RUN go mod download
+
 EXPOSE 4000
-CMD ["cargo", "watch", "-q", "-x", "run"]
+
+CMD ["air", "-c", ".air.toml"]

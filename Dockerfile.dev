@@ -1,8 +1,37 @@
-# Rust image
-FROM rust:1.86.0 AS development
+# Etapa de construcción
+FROM golang:1.24.3-alpine AS builder
 
-RUN cargo install cargo-watch
+WORKDIR /app
 
-WORKDIR /src/app
+# Instala air
+RUN go install github.com/air-verse/air@latest
+
+# Copia go.mod y go.sum
+COPY go.mod go.sum ./ 
+RUN go mod download
+
+# Copia el resto del código
+COPY . .
+
+# ------------------------------------------
+# Etapa de ejecución para desarrollo
+FROM alpine:latest
+
+WORKDIR /app
+
+# Instala Go, Air y herramientas necesarias
+RUN apk add --no-cache \
+    ca-certificates \
+    git \
+    go
+
+# Copia Air desde el builder
+COPY --from=builder /go/bin/air /usr/local/bin/air
+
+# Copia el código del backend
+COPY . .
+
 EXPOSE 4000
-CMD ["cargo", "watch", "-q", "-x", "run"]
+
+# Air leerá el .air.toml
+CMD ["air", "-c", ".air.toml"]

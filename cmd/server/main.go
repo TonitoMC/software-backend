@@ -1,94 +1,74 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"time"
 
+	"software-backend/internal/api"
+	"software-backend/internal/api/handlers"
 	"software-backend/internal/database"
+	"software-backend/internal/models"
+	"software-backend/internal/repository"
+	"software-backend/internal/service"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
+	// Load JWT secret
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable not set")
 	}
 
+	// Create database connection
 	dbConn, err := database.NewDatabaseConnection()
 	if err != nil {
 		log.Fatalf("FATAL: Could not connect to database: %v", err)
 	}
 	defer dbConn.Close()
-	log.Println("DB conn good")
+	userMap := make(map[int]*models.User)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Create two test users
+	user1 := &models.User{
+		ID:       1,
+		Name:     "Alice Smith",
+		Username: "alice.s",
+		Password: "password123", // password won't be in JSON
+	}
 
-	rows, err := dbConn.QueryContext(ctx, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-	if err != nil {
-		log.Printf("aaa")
-	} else {
-		defer rows.Close() // Close the rows when done
+	user2 := &models.User{
+		ID:       2,
+		Name:     "Bob Johnson",
+		Username: "bob.j",
+		Password: "securepassword", // password won't be in JSON
+	}
 
-		log.Println("Query executed successfully. Results:")
+	// Add the test users to the map using their IDs as keys
+	userMap[user1.ID] = user1
+	userMap[user2.ID] = user2
 
-		// Get the column names (optional, but helpful for debugging)
-		columns, _ := rows.Columns()
-		fmt.Println(columns) // Prints column names
+	// Initialize repositories
+	userRepo := repository.NewMockUserRepository(userMap)
+	authService := service.NewAuthService(userRepo)
+	authHandler := handlers.NewAuthHandler(authService, jwtSecret)
 
-		// Iterate through the rows
-		for rows.Next() {
-			// You need to know the number and types of columns to scan.
-			// If you don't know the exact structure, you can use sql.RawBytes or scan into a slice of interface{}.
-			// For a simple print, let's try scanning into a slice of interface{}
-			// Make sure the slice has enough capacity for your table's columns.
-			// You'll need to adjust this based on the actual number of columns in 'usuarios'.
-			numCols := len(columns) // Get the number of columns
-			values := make([]interface{}, numCols)
-			// Create pointers to the interface values to scan into
-			scanArgs := make([]interface{}, numCols)
-			for i := range values {
-				scanArgs[i] = &values[i]
-			}
+	appointmentRepo := repository.NewMockAppointmentRepository()
+	appointmentService := service.NewAppointmentService(appointmentRepo)
+	appointmentHandler := handlers.NewAppointmentHandler(appointmentService)
 
-			err = rows.Scan(scanArgs...)
-			if err != nil {
-				log.Printf("Error scanning row: %v", err)
-				continue // Skip this row, try the next one
-			}
-
-			// Print the values in the row
-			for i, col := range values {
-				// Handle different types appropriately. For simple printing,
-				// fmt.Sprintf("%v", ...) works, but be mindful of data types.
-				// For example, []byte (like VARCHAR) might need string conversion.
-				switch v := col.(type) {
-				case []byte: // Handle byte slices (e.g., text, varchar)
-					fmt.Printf("%s: %s, ", columns[i], string(v))
-				case int64: // Handle integers
-					fmt.Printf("%s: %d, ", columns[i], v)
-				// Add more cases for other data types (bool, float64, time.Time, etc.)
-				default:
-					fmt.Printf("%s: %v, ", columns[i], v) // Generic print for other types
-				}
-			}
-			fmt.Println() // Newline for the next row
-		}
-
-		// Check for errors after iterating through rows
-		if err = rows.Err(); err != nil {
-			log.Printf("Error after iterating through rows: %v", err)
-		}
+	routerConfig := &api.RouterConfig{
+		AuthHandler:        authHandler,
+		AppointmentHandler: appointmentHandler,
 	}
 
 	e := echo.New()
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Goodbye, Dockerized Echo with Hot Reload!")
-	})
+
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	api.SetupRoutes(e, routerConfig)
+
 	e.Logger.Fatal(e.Start(":4000"))
 }

@@ -7,7 +7,6 @@ import (
 	"software-backend/internal/api"
 	"software-backend/internal/api/handlers"
 	"software-backend/internal/database"
-	"software-backend/internal/models"
 	"software-backend/internal/repository"
 	"software-backend/internal/service"
 
@@ -28,47 +27,51 @@ func main() {
 		log.Fatalf("FATAL: Could not connect to database: %v", err)
 	}
 	defer dbConn.Close()
-	userMap := make(map[int]*models.User)
 
-	// Create two test users
-	user1 := &models.User{
-		ID:       1,
-		Name:     "Alice Smith",
-		Username: "alice.s",
-		Password: "password123", // password won't be in JSON
-	}
-
-	user2 := &models.User{
-		ID:       2,
-		Name:     "Bob Johnson",
-		Username: "bob.j",
-		Password: "securepassword", // password won't be in JSON
-	}
-
-	// Add the test users to the map using their IDs as keys
-	userMap[user1.ID] = user1
-	userMap[user2.ID] = user2
-
-	// Initialize repositories
-	userRepo := repository.NewMockUserRepository(userMap)
+	// Initialize auth & user dependencies
+	userRepo := repository.NewUserRepository(dbConn)
 	authService := service.NewAuthService(userRepo)
 	authHandler := handlers.NewAuthHandler(authService, jwtSecret)
+	userService := service.NewUserService(userRepo)
+	userHandler := handlers.NewUserHandler(userService)
 
-	appointmentRepo := repository.NewMockAppointmentRepository()
-	appointmentService := service.NewAppointmentService(appointmentRepo)
+	// Initialize business dependencies
+	businessHoursRepo := repository.NewBusinessHoursRepository(dbConn)
+	businessHoursService := service.NewBusinessHoursService(businessHoursRepo)
+	businessHoursHandler := handlers.NewBusinessHoursHandler(businessHoursService)
+
+	// Initialize appointment dependencies
+	appointmentRepo := repository.NewAppointmentRepository(dbConn)
+	appointmentService := service.NewAppointmentService(appointmentRepo, businessHoursService)
 	appointmentHandler := handlers.NewAppointmentHandler(appointmentService)
 
+	// Initialize petient dependencies
+	patientRepo := repository.NewPatientRepository(dbConn)
+	patientService := service.NewPatientService(patientRepo)
+	patientHandler := handlers.NewPatientHandler(patientService)
+
+	// Configure app router with dependencies
 	routerConfig := &api.RouterConfig{
-		AuthHandler:        authHandler,
-		AppointmentHandler: appointmentHandler,
+		AuthHandler:          authHandler,
+		UserHandler:          userHandler,
+		AppointmentHandler:   appointmentHandler,
+		PatientHandler:       patientHandler,
+		BusinessHoursHandler: businessHoursHandler,
 	}
 
+	// Creation + middleware setup
 	e := echo.New()
-
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:8080"},
+		AllowMethods: []string{"GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
+	}))
 
+	// Route setup
 	api.SetupRoutes(e, routerConfig)
 
+	// Start server
 	e.Logger.Fatal(e.Start(":4000"))
 }

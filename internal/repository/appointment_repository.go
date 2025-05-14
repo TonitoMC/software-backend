@@ -1,160 +1,310 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
-	"sync"
+	"fmt"
+	"log"
 	"time"
 
 	"software-backend/internal/models"
+
+	_ "github.com/lib/pq"
 )
 
-// ErrAppointmentNotFound is returned when an appointment is not found by the repository.
+// Custom errors, probably gonna be moved
 var ErrAppointmentNotFound = errors.New("appointment not found in repository")
 
-// AppointmentRepository defines the interface for appointment data access operations.
+// Interface for appointment data operations
 type AppointmentRepository interface {
 	GetAppointmentByID(id int) (*models.Appointment, error)
 	CreateAppointment(appointment models.Appointment) (*models.Appointment, error)
 	UpdateAppointment(appointment models.Appointment) error
 	DeleteAppointment(id int) error
-	ListAppointmentsByPatientID(patientID int) ([]models.Appointment, error)
 	ListAppointmentsInDateRange(startTime, endTime time.Time) ([]models.Appointment, error)
+	HasOverlappingAppointment(start, end time.Time, excludeID *int) (bool, error)
 }
 
-// --- Mock Appointment Repository Implementation ---
-
-// MockAppointmentRepository is an in-memory implementation of the AppointmentRepository interface.
-type MockAppointmentRepository struct {
-	appointments map[int]*models.Appointment
-	mu           sync.Mutex
-	nextApptID   int
+// Struct to manage dependencies
+type appointmentRepository struct {
+	db *sql.DB
 }
 
-// NewMockAppointmentRepository creates a new instance of MockAppointmentRepository
-// and pre-populates it with some dummy data for testing.
-func NewMockAppointmentRepository() AppointmentRepository {
-	initialAppointments := make(map[int]*models.Appointment)
+// Constructor to pass on dependencies
+func NewAppointmentRepository(dbConn *sql.DB) AppointmentRepository {
+	return &appointmentRepository{
+		db: dbConn,
+	}
+}
 
-	now := time.Now()
-	initialAppointments[1] = &models.Appointment{
-		ID: 1, PatientID: 123, Name: "Routine check-up", // Use Name field
-		Start: now.Add(time.Hour * 24), Duration: time.Minute * 30, // Use Start field
-		// Status: models.AppointmentStatusScheduled, // Status isn't in your model, removed
-		// Notes: "Routine check-up", // Notes isn't in your model, removed
-	}
-	initialAppointments[2] = &models.Appointment{
-		ID: 2, PatientID: 123, Name: "Follow-up appointment", // Use Name field
-		Start: now.Add(time.Hour * 48).Add(time.Hour * 9), Duration: time.Minute * 45, // Use Start field
-		// Status: models.AppointmentStatusScheduled, // Status isn't in your model, removed
-		// Notes: "Follow-up appointment", // Notes isn't in your model, removed
-	}
-	initialAppointments[3] = &models.Appointment{
-		ID: 3, PatientID: 456, Name: "Consultation Bob", // Use Name field
-		Start: now.Add(time.Hour * 24).Add(time.Hour * 10), Duration: time.Minute * 20, // Use Start field
-		// Status: models.AppointmentStatusCompleted, // Status isn't in your model, removed
-		// Notes: "Consultation", // Notes isn't in your model, removed
-	}
-	initialAppointments[4] = &models.Appointment{
-		ID: 4, PatientID: 123, Name: "Past Appointment", // Use Name field
-		Start: now.Add(time.Hour * -12), Duration: time.Minute * 30, // Use Start field
-		// Status: models.AppointmentStatusCompleted, // Status isn't in your model, removed
-		// Notes: "Past appointment", // Notes isn't in your model, removed
-	}
+// Get an appointment by ID
+func (r *appointmentRepository) GetAppointmentByID(id int) (*models.Appointment, error) {
+	// Build query
+	query := `
+		SELECT
+            id,
+            paciente_id,
+            nombre,
+            fecha,
+            duracion
+        FROM
+            citas
+        WHERE
+            id = $1
+	`
 
-	nextID := 1
-	for id := range initialAppointments {
-		if id >= nextID {
-			nextID = id + 1
+	// Create model
+	appt := &models.Appointment{}
+	var durationSeconds int64
+	var patientName sql.NullString
+	var patientID sql.NullInt64
+	var fecha time.Time
+
+	// Scan into model
+	err := r.db.QueryRow(query, id).Scan(
+		&appt.ID,
+		&patientID,
+		&patientName,
+		&fecha,
+		&durationSeconds,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrAppointmentNotFound
 		}
+		return nil, fmt.Errorf("repository: failed to get appointment by ID %d: %w", id, err)
 	}
 
-	return &MockAppointmentRepository{
-		appointments: initialAppointments,
-		nextApptID:   nextID,
+	// Null handling
+	if patientID.Valid {
+		appt.PatientID = int(patientID.Int64)
+	} else {
+		appt.PatientID = 0
 	}
-}
-
-// GetAppointmentByID implements the AppointmentRepository interface for the mock.
-func (r *MockAppointmentRepository) GetAppointmentByID(id int) (*models.Appointment, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	appointment, ok := r.appointments[id]
-	if !ok {
-		return nil, ErrAppointmentNotFound
+	if patientName.Valid {
+		appt.Name = patientName.String
+	} else {
+		appt.Name = ""
 	}
-	copiedAppt := *appointment
-	return &copiedAppt, nil
+
+	// Time - Interval management, Postgres is storing a BigInt in seconds
+	appt.Start = fecha
+
+	appt.Duration = time.Duration(durationSeconds) * time.Second
+
+	return appt, nil
 }
 
-// CreateAppointment implements the AppointmentRepository interface for the mock.
-func (r *MockAppointmentRepository) CreateAppointment(appointment models.Appointment) (*models.Appointment, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	appointment.ID = r.nextApptID
-	r.nextApptID++
-	r.appointments[appointment.ID] = &appointment
-	createdAppt := appointment
-	return &createdAppt, nil
+// Create an appointment
+func (r *appointmentRepository) CreateAppointment(appointment models.Appointment) (*models.Appointment, error) {
+	// Build query
+	query := `INSERT INTO citas (paciente_id, nombre, fecha, duracion)
+			  VALUES ($1, $2, $3, $4)
+			  RETURNING id`
+
+	// Manage nullable patientID & create appointmentID
+	var appointmentID int
+
+	var patientIDValue interface{}
+	if appointment.PatientID == 0 {
+		patientIDValue = nil
+	} else {
+		patientIDValue = appointment.PatientID
+	}
+
+	// Duration management
+	durationSeconds := int64(appointment.Duration / time.Second)
+
+	// DEBUG LOG
+	log.Printf("Repository: Creating appointment. Original Start: %v, Name: %s, Duration: %v, Duration in Seconds: %d",
+		appointment.Start, appointment.Name, appointment.Duration, durationSeconds)
+
+	// Insert values into query & exec
+	err := r.db.QueryRow(query,
+		patientIDValue,
+		appointment.Name,
+		appointment.Start,
+		durationSeconds,
+	).Scan(&appointmentID)
+	if err != nil {
+		return nil, fmt.Errorf("repository: failed to create appointment: %w", err)
+	}
+
+	appointment.ID = appointmentID
+
+	return &appointment, nil
 }
 
-// UpdateAppointment implements the AppointmentRepository interface for the mock.
-func (r *MockAppointmentRepository) UpdateAppointment(appointment models.Appointment) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	_, ok := r.appointments[appointment.ID]
-	if !ok {
+// Update an appointment
+func (r *appointmentRepository) UpdateAppointment(appointment models.Appointment) error {
+	// Build query
+	query := `UPDATE citas SET
+				paciente_id = $1,
+				nombre = $2,
+				fecha = $3,
+				duracion = $4
+			  WHERE id = $5`
+
+	// PatientID null management
+	var patientIDValue interface{}
+	if appointment.PatientID == 0 {
+		patientIDValue = nil
+	} else {
+		patientIDValue = appointment.PatientID
+	}
+
+	// Duration time / format management
+	durationSeconds := int64(appointment.Duration / time.Second)
+
+	// Pass values to query & exec
+	result, err := r.db.Exec(query,
+		patientIDValue,
+		appointment.Name,
+		appointment.Start,
+		durationSeconds,
+		appointment.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("repository: failed to update appointment ID %d: %w", appointment.ID, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("repository: failed to check rows affected for update ID %d: %w", appointment.ID, err)
+	}
+	if rowsAffected == 0 {
 		return ErrAppointmentNotFound
 	}
-	r.appointments[appointment.ID] = &appointment
 	return nil
 }
 
-// DeleteAppointment implements the AppointmentRepository interface for the mock.
-func (r *MockAppointmentRepository) DeleteAppointment(id int) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	_, ok := r.appointments[id]
-	if !ok {
+// Delete an appointment
+func (r *appointmentRepository) DeleteAppointment(id int) error {
+	// Build & exec query
+	query := `DELETE FROM citas WHERE id = $1`
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("repository: failed to delete appointment ID %d: %w", id, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("repository: failed to check rows affected for delete ID %d: %w", id, err)
+	}
+	if rowsAffected == 0 {
 		return ErrAppointmentNotFound
 	}
-	delete(r.appointments, id)
 	return nil
 }
 
-// ListAppointmentsByPatientID implements the AppointmentRepository interface for the mock.
-func (r *MockAppointmentRepository) ListAppointmentsByPatientID(patientID int) ([]models.Appointment, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	appointments := []models.Appointment{}
-	for _, appt := range r.appointments {
-		if appt.PatientID == patientID {
-			copiedAppt := *appt
-			appointments = append(appointments, copiedAppt)
-		}
+// Get appointments within a data range
+func (r *appointmentRepository) ListAppointmentsInDateRange(startTime, endTime time.Time) ([]models.Appointment, error) {
+	// Build query
+	query := `
+		SELECT
+            id,
+            paciente_id,
+            nombre,
+            fecha,
+            duracion
+        FROM
+            citas
+        WHERE
+            fecha BETWEEN $1 AND $2
+        ORDER BY fecha
+	`
+
+	queryStartTime := startTime
+	queryEndTime := endTime
+
+	log.Printf("Repository: Executing query for date range: %s", query)
+	log.Printf("Repository: Parameter 1 ($1): Value=%v, Type=%T, Location=%v", queryStartTime, queryStartTime, queryStartTime.Location())
+	log.Printf("Repository: Parameter 2 ($2): Value=%v, Type=%T, Location=%v", queryEndTime, queryEndTime, queryEndTime.Location())
+
+	// Exec query
+	rows, err := r.db.Query(query, queryStartTime, queryEndTime)
+	if err != nil {
+		log.Printf("Repository: Error during db.Query: %v", err)
+		return nil, fmt.Errorf("repository: failed to list appointments in date range %v to %v: %w", startTime, endTime, err)
 	}
-	// Optional: Sort by start time
-	// sort.SliceStable(appointments, func(i, j int) bool {
-	//     return appointments[i].Start.Before(appointments[j].Start)
-	// })
+	defer rows.Close()
+
+	// Scan into appointment slice
+	appointments := []models.Appointment{}
+	rowCount := 0
+	for rows.Next() {
+		rowCount++
+		var appt models.Appointment
+		var durationSeconds int64
+		var patientName sql.NullString
+		var patientID sql.NullInt64
+		var fecha time.Time
+
+		err := rows.Scan(
+			&appt.ID,
+			&patientID,
+			&patientName,
+			&fecha,
+			&durationSeconds,
+		)
+		if err != nil {
+			log.Printf("repository: error scanning row %d: %v", rowCount, err)
+			continue
+		}
+
+		if patientID.Valid {
+			appt.PatientID = int(patientID.Int64)
+		} else {
+			appt.PatientID = 0
+		}
+		if patientName.Valid {
+			appt.Name = patientName.String
+		} else {
+			appt.Name = ""
+		}
+
+		appt.Start = fecha
+
+		appt.Duration = time.Duration(durationSeconds) * time.Second // Convert seconds to Duration
+
+		appointments = append(appointments, appt)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("repository: error after iterating rows: %v", err)
+		return nil, fmt.Errorf("repository: error after iterating appointment rows in date range: %w", err)
+	}
+
+	log.Printf("Repository: Successfully listed %d appointments.", len(appointments))
+
+	// Return resulting slice
 	return appointments, nil
 }
 
-// ListAppointmentsInDateRange implements the AppointmentRepository interface for the mock.
-func (r *MockAppointmentRepository) ListAppointmentsInDateRange(startTime, endTime time.Time) ([]models.Appointment, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	appointments := []models.Appointment{}
-	for _, appt := range r.appointments {
-		// Check if appointment's start time is within the range [startTime, endTime]
-		if (appt.Start.Equal(startTime) || appt.Start.After(startTime)) && (appt.Start.Equal(endTime) || appt.Start.Before(endTime)) {
-			copiedAppt := *appt
-			appointments = append(appointments, copiedAppt)
-		}
+// Verify if an appointment is overlapping with another
+func (r *appointmentRepository) HasOverlappingAppointment(start, end time.Time, excludeID *int) (bool, error) {
+	// Build query
+	query := `
+		SELECT 1 FROM citas
+		WHERE NOT (
+			(fecha + make_interval(secs => duracion)) <= $1
+			OR fecha >= $2
+		)
+	`
+	// Dynamically build args
+	args := []interface{}{start, end}
+	if excludeID != nil {
+		query += " AND id != $3"
+		args = append(args, *excludeID)
 	}
-	// Optional: Sort by start time
-	// sort.SliceStable(appointments, func(i, j int) bool {
-	//     return appointments[i].Start.Before(appointments[j].Start)
-	// })
-	return appointments, nil
-}
+	query += " LIMIT 1"
 
+	row := r.db.QueryRow(query, args...)
+	var dummy int
+	err := row.Scan(&dummy)
+	if err == sql.ErrNoRows {
+		return false, nil // No overlap
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil // Overlap found
+}

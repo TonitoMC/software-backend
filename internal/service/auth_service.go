@@ -4,41 +4,48 @@ import (
 	"errors"
 
 	"software-backend/internal/repository"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
-// Custom errors for authentication failure
+// Custom errors for authentication failure, probably gonna be moved
+// to a separate file in the future
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrUserNotFound       = errors.New("user not found")
 )
 
-// Interface for authentication-related business logic
+// Interface holds the expected methods from the service
 type AuthService interface {
 	AuthenticateUser(username, password string) (userID int, err error)
 }
 
-// Dependencies to verify user credentials
+// Struct to manage dependencies
 type authService struct {
 	userRepo repository.UserRepository
 }
 
-// Create a new AuthService instance
+// Constructor to pass on dependencies
 func NewAuthService(userRepo repository.UserRepository) AuthService {
 	return &authService{
 		userRepo: userRepo,
 	}
 }
 
-// AuthenticateUser verifies user credentials against the database.
+// Verify user credentials against database
 func (s *authService) AuthenticateUser(username, password string) (userID int, err error) {
-	// Get user from the database by username
+	// Get user by username via repository
 	user, err := s.userRepo.GetUserByUsername(username)
 	if err != nil {
 		return 0, ErrInvalidCredentials
 	}
 
-	if password != "password" {
-		return 0, ErrInvalidCredentials
+	// Compare password using BCrypt
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return 0, ErrInvalidCredentials
+		}
+		return 0, errors.New("internal authentication error")
 	}
 
 	return user.ID, nil

@@ -1,72 +1,99 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
-	"sync"
+	"fmt"
 
 	"software-backend/internal/models"
+
+	"github.com/lib/pq"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+// Custom errors, probably moved to another file later on
+var (
+	ErrUserNotFound      = errors.New("user not found")
+	ErrDuplicateUsername = errors.New("duplicate username")
+)
 
-// Interface for user data access operations
+// Interface defines the methods for interaction with the Repository
 type UserRepository interface {
 	GetUserByID(id int) (*models.User, error)
 	GetUserByUsername(username string) (*models.User, error)
+	CreateUser(user models.User) (*models.User, error)
 }
 
-type MockUserRepository struct {
-	users      map[int]*models.User
-	mu         sync.Mutex
-	nextUserID int
+// Struct to manage dependencies
+type userRepository struct {
+	db *sql.DB
 }
 
-func NewMockUserRepository(initialUsers map[int]*models.User) UserRepository {
-	if initialUsers == nil {
-		initialUsers = make(map[int]*models.User)
+// Constructor to pass on dependencies
+func NewUserRepository(dbConn *sql.DB) UserRepository {
+	return &userRepository{
+		db: dbConn,
 	}
-	nextID := 1
-	for id := range initialUsers {
-		if id >= nextID {
-			nextID = id + 1
+}
+
+// Get a User via their ID
+func (r *userRepository) GetUserByID(id int) (*models.User, error) {
+	// Build query
+	query := `SELECT id, username, password_hash, correo FROM usuarios WHERE id = $1`
+
+	// Create model
+	user := &models.User{}
+
+	// Extract query into user, if unable to return error
+	if err := r.db.QueryRow(query, id).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
 		}
+		return nil, fmt.Errorf("repository: failed to get user by ID %d: %w", id, err)
 	}
-
-	return &MockUserRepository{
-		users:      initialUsers,
-		nextUserID: nextID,
-	}
+	return user, nil
 }
 
-func (r *MockUserRepository) GetUserByID(id int) (*models.User, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	user, ok := r.users[id]
-	if !ok {
-		return nil, ErrUserNotFound
-	}
-	copiedUser := *user
-	return &copiedUser, nil
-}
+// Get a user by name
+func (r *userRepository) GetUserByUsername(username string) (*models.User, error) {
+	// Build query
+	query := `SELECT id, username, password_hash, correo FROM usuarios WHERE username = $1`
 
-func (r *MockUserRepository) GetUserByUsername(username string) (*models.User, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, user := range r.users {
-		if user.Username == username {
-			copiedUser := *user
-			return &copiedUser, nil
+	// Create model
+	user := &models.User{}
+
+	// Extract query into user, if unable return error
+	if err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
 		}
+		return nil, fmt.Errorf("repository: failed to get user by ID %d: %w", username, err)
 	}
-	return nil, ErrUserNotFound
+
+	return user, nil
 }
 
-func (r *MockUserRepository) CreateUser(user models.User) (*models.User, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	user.ID = r.nextUserID
-	r.nextUserID++
-	r.users[user.ID] = &user
-	createdUser := user
-	return &createdUser, nil
+// Create a user from a User model
+func (r *userRepository) CreateUser(user models.User) (*models.User, error) {
+	// Build query
+	query := `INSERT INTO usuarios (username, password_hash, correo)
+						VALUES ($1, $2, $3)
+						RETURNING id`
+
+	var userID int
+
+	// Exec query, return user ID on success or error on failure
+	err := r.db.QueryRow(query, user.Username, user.PasswordHash, user.Email).Scan(&userID)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			if pqErr.Code.Name() == "unique_violation" {
+				return nil, ErrDuplicateUsername
+			}
+		}
+		return nil, fmt.Errorf("repository: failed to create user: %w", err)
+	}
+
+	user.ID = userID
+
+	return &user, nil
 }

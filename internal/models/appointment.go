@@ -2,6 +2,7 @@ package models
 
 import "time"
 
+// Represents an appointment
 type Appointment struct {
 	ID        int           `json:"id"`
 	PatientID int           `json:"patient_id"`

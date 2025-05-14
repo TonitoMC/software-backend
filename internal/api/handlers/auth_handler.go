@@ -10,13 +10,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Auth Handler dependencies
+// Struct to manage dependencies
 type AuthHandler struct {
 	authService service.AuthService
 	jwtSecret   string
 }
 
-// Creates a new AuthHandler instance
+// Constructor to pass on dependencies
 func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 	return &AuthHandler{
 		authService: svc,
@@ -24,20 +24,19 @@ func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 	}
 }
 
-// Body of a login request
+// Req for login
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// Body of a login response
+// Response for login
 type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-// Login handles POST requests to the login endpoint
+// Handle login requests
 func (h *AuthHandler) Login(c echo.Context) error {
-	// Parse the body of the request
 	req := new(LoginRequest)
 	if err := c.Bind(req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid login request body")

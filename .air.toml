@@ -1,5 +1,3 @@
-
-# .air.toml
 root = "."
 tmp_dir = "tmp"
 
@@ -12,6 +10,7 @@ exclude_dir = [
   "vendor",
   "frontend",
 ] # Added vendor and frontend for robustness
+delay = 3000 # ms
 
 [log]
 time = true
@@ -30,6 +29,9 @@ app = "blue"
 [runner]
 # Ensure the runner is enabled (should be default, but explicit is good)
 enable = true
+stop_signal = "SIGTERM"
+send_interrupt = false
+kill_delay = 500 # ms
 
 [misc]
 # Clean up temp directory on exit

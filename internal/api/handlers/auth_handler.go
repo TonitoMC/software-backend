@@ -26,7 +26,7 @@ func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 
 // Req for login
 type LoginRequest struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -43,7 +43,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	}
 
 	// Auth service verifies credentials
-	userID, err := h.authService.AuthenticateUser(req.Username, req.Password)
+	userID, err := h.authService.AuthenticateUser(req.Email, req.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}

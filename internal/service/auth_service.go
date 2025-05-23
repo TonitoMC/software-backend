@@ -17,7 +17,7 @@ var (
 
 // Interface holds the expected methods from the service
 type AuthService interface {
-	AuthenticateUser(username, password string) (userID int, err error)
+	AuthenticateUser(email, password string) (userID int, err error)
 }
 
 // Struct to manage dependencies
@@ -33,9 +33,9 @@ func NewAuthService(userRepo repository.UserRepository) AuthService {
 }
 
 // Verify user credentials against database
-func (s *authService) AuthenticateUser(username, password string) (userID int, err error) {
-	// Get user by username via repository
-	user, err := s.userRepo.GetUserByUsername(username)
+func (s *authService) AuthenticateUser(email, password string) (userID int, err error) {
+	// Get user by email via repository
+	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return 0, ErrInvalidCredentials
 	}

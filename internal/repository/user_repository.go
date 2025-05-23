@@ -19,7 +19,7 @@ var (
 // Interface defines the methods for interaction with the Repository
 type UserRepository interface {
 	GetUserByID(id int) (*models.User, error)
-	GetUserByUsername(username string) (*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
 	CreateUser(user models.User) (*models.User, error)
 }
 
@@ -67,6 +67,21 @@ func (r *userRepository) GetUserByUsername(username string) (*models.User, error
 			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("repository: failed to get user by ID %d: %w", username, err)
+	}
+
+	return user, nil
+}
+
+func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
+	query := `SELECT id, username, password_hash, correo FROM usuarios WHERE correo = $1`
+
+	user := &models.User{}
+
+	if err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("repository: failed to get user by email %s: %w", email, err)
 	}
 
 	return user, nil

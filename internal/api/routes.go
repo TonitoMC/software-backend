@@ -15,6 +15,8 @@ type RouterConfig struct {
 	AppointmentHandler   *handlers.AppointmentHandler
 	PatientHandler       *handlers.PatientHandler
 	BusinessHoursHandler *handlers.BusinessHoursHandler
+	ExamHandler          *handlers.ExamHandler
+	ConsultationHandler  *handlers.ConsultationHandler
 }
 
 // Sets up routes for the application
@@ -37,6 +39,12 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 
 	// Business hours routes
 	e.GET("/business-hours", config.BusinessHoursHandler.GetBusinessHours)
+
+	// Consultation routes
+	e.GET("/consultations/patient/:patient_id", config.ConsultationHandler.GetByPatientID)
+
+	// Exam routes
+	e.GET("/exams/patient/:patient_id", config.ExamHandler.GetByPatientID)
 
 	// Route just to verify everything's up
 	e.GET("/", func(c echo.Context) error {

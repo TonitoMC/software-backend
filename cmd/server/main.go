@@ -50,6 +50,16 @@ func main() {
 	patientService := service.NewPatientService(patientRepo)
 	patientHandler := handlers.NewPatientHandler(patientService)
 
+	// Initializa exam dependencies
+	examRepo := repository.NewExamRepository(dbConn)
+	examService := service.NewExamService(examRepo)
+	examHandler := handlers.NewExamHandler(examService)
+
+	// Initialize consult dependencies
+	consultationRepo := repository.NewConsultationRepository(dbConn)
+	consultationService := service.NewConsultationService(consultationRepo)
+	consultationHandler := handlers.NewConsultationHandler(consultationService)
+
 	// Configure app router with dependencies
 	routerConfig := &api.RouterConfig{
 		AuthHandler:          authHandler,
@@ -57,6 +67,8 @@ func main() {
 		AppointmentHandler:   appointmentHandler,
 		PatientHandler:       patientHandler,
 		BusinessHoursHandler: businessHoursHandler,
+		ExamHandler:          examHandler,
+		ConsultationHandler:  consultationHandler,
 	}
 
 	// Creation + middleware setup

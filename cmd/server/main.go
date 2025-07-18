@@ -27,7 +27,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// Test comment for workflow
+// Test comment for workflow v2
 
 func main() {
 	// Load JWT secret

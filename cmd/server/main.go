@@ -7,8 +7,21 @@ import (
 	"software-backend/internal/api"
 	"software-backend/internal/api/handlers"
 	"software-backend/internal/database"
-	"software-backend/internal/repository"
-	"software-backend/internal/service"
+
+	"software-backend/internal/repository/appointment"
+	bh "software-backend/internal/repository/business_hour"
+	"software-backend/internal/repository/consultation"
+	"software-backend/internal/repository/exam"
+	"software-backend/internal/repository/patient"
+	"software-backend/internal/repository/user"
+
+	appointmentservice "software-backend/internal/service/appointment"
+	authservice "software-backend/internal/service/auth"
+	businesshourservice "software-backend/internal/service/businesshour"
+	consultationservice "software-backend/internal/service/consultation"
+	examservice "software-backend/internal/service/exam"
+	patientservice "software-backend/internal/service/patient"
+	userservice "software-backend/internal/service/user"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -29,35 +42,35 @@ func main() {
 	defer dbConn.Close()
 
 	// Initialize auth & user dependencies
-	userRepo := repository.NewUserRepository(dbConn)
-	authService := service.NewAuthService(userRepo)
+	userRepo := user.NewUserRepository(dbConn)
+	authService := authservice.NewAuthService(userRepo)
 	authHandler := handlers.NewAuthHandler(authService, jwtSecret)
-	userService := service.NewUserService(userRepo)
+	userService := userservice.NewUserService(userRepo)
 	userHandler := handlers.NewUserHandler(userService)
 
-	// Initialize business dependencies
-	businessHoursRepo := repository.NewBusinessHoursRepository(dbConn)
-	businessHoursService := service.NewBusinessHoursService(businessHoursRepo)
+	// Initialize business hours dependencies
+	businessHoursRepo := bh.NewBusinessHoursRepository(dbConn)
+	businessHoursService := businesshourservice.NewBusinessHoursService(businessHoursRepo)
 	businessHoursHandler := handlers.NewBusinessHoursHandler(businessHoursService)
 
 	// Initialize appointment dependencies
-	appointmentRepo := repository.NewAppointmentRepository(dbConn)
-	appointmentService := service.NewAppointmentService(appointmentRepo, businessHoursService)
+	appointmentRepo := appointment.NewAppointmentRepository(dbConn)
+	appointmentService := appointmentservice.NewAppointmentService(appointmentRepo, businessHoursService)
 	appointmentHandler := handlers.NewAppointmentHandler(appointmentService)
 
-	// Initialize petient dependencies
-	patientRepo := repository.NewPatientRepository(dbConn)
-	patientService := service.NewPatientService(patientRepo)
+	// Initialize patient dependencies
+	patientRepo := patient.NewPatientRepository(dbConn)
+	patientService := patientservice.NewPatientService(patientRepo)
 	patientHandler := handlers.NewPatientHandler(patientService)
 
-	// Initializa exam dependencies
-	examRepo := repository.NewExamRepository(dbConn)
-	examService := service.NewExamService(examRepo)
+	// Initialize exam dependencies
+	examRepo := exam.NewExamRepository(dbConn)
+	examService := examservice.NewExamService(examRepo)
 	examHandler := handlers.NewExamHandler(examService)
 
-	// Initialize consult dependencies
-	consultationRepo := repository.NewConsultationRepository(dbConn)
-	consultationService := service.NewConsultationService(consultationRepo)
+	// Initialize consultation dependencies
+	consultationRepo := consultation.NewConsultationRepository(dbConn)
+	consultationService := consultationservice.NewConsultationService(consultationRepo)
 	consultationHandler := handlers.NewConsultationHandler(consultationService)
 
 	// Configure app router with dependencies

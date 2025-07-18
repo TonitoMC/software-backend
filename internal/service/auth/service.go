@@ -1,9 +1,9 @@
-package service
+package auth
 
 import (
 	"errors"
 
-	"software-backend/internal/repository"
+	"software-backend/internal/repository/user"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,11 +22,11 @@ type AuthService interface {
 
 // Struct to manage dependencies
 type authService struct {
-	userRepo repository.UserRepository
+	userRepo user.UserRepository
 }
 
 // Constructor to pass on dependencies
-func NewAuthService(userRepo repository.UserRepository) AuthService {
+func NewAuthService(userRepo user.UserRepository) AuthService {
 	return &authService{
 		userRepo: userRepo,
 	}

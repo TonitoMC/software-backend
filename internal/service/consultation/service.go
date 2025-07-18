@@ -1,9 +1,9 @@
 // service/business_hours_service.go
-package service
+package consultation
 
 import (
 	"software-backend/internal/models"
-	"software-backend/internal/repository"
+	"software-backend/internal/repository/consultation"
 )
 
 type ConsultationService interface {
@@ -11,10 +11,10 @@ type ConsultationService interface {
 }
 
 type consultationService struct {
-	repo repository.ConsultationRepository
+	repo consultation.ConsultationRepository
 }
 
-func NewConsultationService(repo repository.ConsultationRepository) ConsultationService {
+func NewConsultationService(repo consultation.ConsultationRepository) ConsultationService {
 	return &consultationService{repo: repo}
 }
 

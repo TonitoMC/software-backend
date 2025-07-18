@@ -1,4 +1,4 @@
-package repository
+package businesshour
 
 import (
 	"database/sql"

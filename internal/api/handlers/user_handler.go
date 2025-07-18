@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"software-backend/internal/repository"
-	"software-backend/internal/service"
+	repository "software-backend/internal/repository/user"
+	service "software-backend/internal/service/user"
 
 	"github.com/labstack/echo/v4"
 )

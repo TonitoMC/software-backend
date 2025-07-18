@@ -1,4 +1,4 @@
-package repository
+package exam
 
 import (
 	"database/sql"

@@ -1,9 +1,9 @@
 // service/business_hours_service.go
-package service
+package exam
 
 import (
 	"software-backend/internal/models"
-	"software-backend/internal/repository"
+	repository "software-backend/internal/repository/exam"
 )
 
 // BussinessHoursService interface defines the methods expected from the service

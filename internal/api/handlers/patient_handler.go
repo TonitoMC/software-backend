@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	repository "software-backend/internal/repository/patient"
+	service "software-backend/internal/service/patient"
 
-	"software-backend/internal/repository"
-	"software-backend/internal/service"
+	"github.com/labstack/echo/v4"
 )
 
 // Struct to manage dependencies

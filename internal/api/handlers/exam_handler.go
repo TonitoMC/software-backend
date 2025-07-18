@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"software-backend/internal/service"
+	service "software-backend/internal/service/exam"
 
 	"github.com/labstack/echo/v4"
 )

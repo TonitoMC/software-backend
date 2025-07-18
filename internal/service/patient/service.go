@@ -1,10 +1,10 @@
-package service
+package patient
 
 import (
 	"fmt"
 
 	"software-backend/internal/models"
-	"software-backend/internal/repository"
+	repository "software-backend/internal/repository/patient"
 )
 
 // TODO custom errors for service

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"software-backend/internal/service"
+	service "software-backend/internal/service/businesshour"
 
 	"github.com/labstack/echo/v4"
 )

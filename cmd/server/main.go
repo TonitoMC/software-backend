@@ -27,6 +27,8 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+// Test comment for workflow
+
 func main() {
 	// Load JWT secret
 	jwtSecret := os.Getenv("JWT_SECRET")

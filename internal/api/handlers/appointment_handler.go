@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"software-backend/internal/models"
-	"software-backend/internal/service"
+	service "software-backend/internal/service/appointment"
 
 	"github.com/labstack/echo/v4"
 )

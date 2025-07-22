@@ -1,4 +1,4 @@
-package repository
+package user
 
 import (
 	"database/sql"
@@ -66,7 +66,7 @@ func (r *userRepository) GetUserByUsername(username string) (*models.User, error
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
-		return nil, fmt.Errorf("repository: failed to get user by ID %d: %w", username, err)
+		return nil, fmt.Errorf("repository: failed to get user by ID %s: %w", username, err)
 	}
 
 	return user, nil

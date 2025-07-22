@@ -1,4 +1,4 @@
-package service
+package appointment
 
 import (
 	"errors"
@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"software-backend/internal/models"
-	"software-backend/internal/repository"
+	"software-backend/internal/repository/appointment"
+	"software-backend/internal/service/businesshour"
 )
 
 // Custom errors, probably moved onto separate file in the future
@@ -29,12 +30,12 @@ type AppointmentService interface {
 
 // Struct to manage dependencies
 type appointmentService struct {
-	apptRepo             repository.AppointmentRepository
-	businessHoursService BusinessHoursService
+	apptRepo             appointment.AppointmentRepository
+	businessHoursService businesshour.BusinessHoursService
 }
 
 // Constructor to pass on dependencies
-func NewAppointmentService(apptRepo repository.AppointmentRepository, bhService BusinessHoursService) AppointmentService {
+func NewAppointmentService(apptRepo appointment.AppointmentRepository, bhService businesshour.BusinessHoursService) AppointmentService {
 	return &appointmentService{
 		apptRepo:             apptRepo,
 		businessHoursService: bhService,

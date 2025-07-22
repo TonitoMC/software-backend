@@ -1,13 +1,15 @@
-package service
+package user
 
 import (
 	"errors"
 
 	"software-backend/internal/models"
-	"software-backend/internal/repository"
+	repository "software-backend/internal/repository/user"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+var bcryptGenerateFromPassword = bcrypt.GenerateFromPassword
 
 // Custom errors, will probably be moved to another file later on
 var (
@@ -40,7 +42,7 @@ func (s *userService) RegisterUser(username, email, password string) (*models.Us
 	}
 
 	// Hash password for storage, Bcrypt adds salt
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcryptGenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, ErrPasswordHashingFailed
 	}

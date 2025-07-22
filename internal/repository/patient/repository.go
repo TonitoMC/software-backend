@@ -1,4 +1,4 @@
-package repository
+package patient
 
 import (
 	"database/sql"

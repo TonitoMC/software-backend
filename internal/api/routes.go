@@ -21,6 +21,10 @@ type RouterConfig struct {
 
 // Sets up routes for the application
 func SetupRoutes(e *echo.Echo, config *RouterConfig) {
+	// Health Check
+	e.GET("/healthz", func(c echo.Context) error {
+		return c.String(200, "ok")
+	})
 	e.POST("/login", config.AuthHandler.Login)
 	e.POST("/register", config.UserHandler.Register)
 

@@ -1,4 +1,4 @@
-package repository
+package appointment
 
 import (
 	"database/sql"

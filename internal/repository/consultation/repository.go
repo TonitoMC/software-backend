@@ -1,4 +1,4 @@
-package repository
+package consultation
 
 import (
 	"database/sql"

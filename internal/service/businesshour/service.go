@@ -1,11 +1,11 @@
 // service/business_hours_service.go
-package service
+package businesshour
 
 import (
 	"time"
 
 	"software-backend/internal/models"
-	"software-backend/internal/repository"
+	bh "software-backend/internal/repository/business_hour"
 )
 
 // BussinessHoursService interface defines the methods expected from the service
@@ -15,11 +15,11 @@ type BusinessHoursService interface {
 
 // Struct to manage dependencies
 type businessHoursService struct {
-	repo repository.BusinessHoursRepository
+	repo bh.BusinessHoursRepository
 }
 
 // Constructor to pass on dependencies
-func NewBusinessHoursService(repo repository.BusinessHoursRepository) BusinessHoursService {
+func NewBusinessHoursService(repo bh.BusinessHoursRepository) BusinessHoursService {
 	return &businessHoursService{repo: repo}
 }
 

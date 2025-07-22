@@ -103,4 +103,6 @@ func main() {
 	e.Logger.Fatal(e.Start(":4000"))
 
 	// Comment for changes
+
+	// Comment for tests
 }

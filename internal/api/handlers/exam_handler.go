@@ -4,32 +4,83 @@ import (
 	"net/http"
 	"strconv"
 
-	service "software-backend/internal/service/exam"
+	examservice "software-backend/internal/service/exam"
 
 	"github.com/labstack/echo/v4"
 )
 
-// Struct to manage dependencies
 type ExamHandler struct {
-	service service.ExamService
+	service examservice.ExamService
 }
 
-// Constructor to pass on dependencies
-func NewExamHandler(service service.ExamService) *ExamHandler {
+func NewExamHandler(service examservice.ExamService) *ExamHandler {
 	return &ExamHandler{service: service}
 }
 
-// Get business hours for a specific date
-func (h *ExamHandler) GetByPatientID(c echo.Context) error {
-	patientID := c.Param("patient_id")
-	id, err := strconv.Atoi(patientID)
+// GET /api/patients/:patientId/exams
+func (h *ExamHandler) GetExamsByPatient(c echo.Context) error {
+	patientID, err := strconv.Atoi(c.Param("patientId"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid patient"})
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid patient ID",
+		})
 	}
-	// Get date & perform basic input validation
-	exams, err := h.service.GetByPatientID(id)
+
+	exams, err := h.service.GetByPatientID(patientID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch exams",
+		})
 	}
+
 	return c.JSON(http.StatusOK, exams)
+}
+
+// POST /api/exams/:examId/upload
+func (h *ExamHandler) UploadPDF(c echo.Context) error {
+	examID, err := strconv.Atoi(c.Param("examId"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid exam ID",
+		})
+	}
+
+	file, err := c.FormFile("pdf")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "No PDF file provided",
+		})
+	}
+
+	err = h.service.UploadPDF(examID, file)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "File uploaded successfully",
+	})
+}
+
+// GET /api/exams/:examId/download
+func (h *ExamHandler) GetDownloadURL(c echo.Context) error {
+	examID, err := strconv.Atoi(c.Param("examId"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid exam ID",
+		})
+	}
+
+	url, err := h.service.GetDownloadURL(examID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"download_url": url,
+	})
 }

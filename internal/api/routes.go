@@ -47,8 +47,9 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 	// Consultation routes
 	e.GET("/consultations/patient/:patient_id", config.ConsultationHandler.GetByPatientID)
 
-	// Exam routes
-	e.GET("/exams/patient/:patient_id", config.ExamHandler.GetByPatientID)
+	e.GET("/patients/:patientId/exams", config.ExamHandler.GetExamsByPatient)
+	e.POST("/exams/:examId/upload", config.ExamHandler.UploadPDF)
+	e.GET("/exams/:examId/download", config.ExamHandler.GetDownloadURL)
 
 	// Route just to verify everything's up
 	e.GET("/", func(c echo.Context) error {

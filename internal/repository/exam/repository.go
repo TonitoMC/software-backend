@@ -2,48 +2,92 @@ package exam
 
 import (
 	"database/sql"
-	"time"
 
 	"software-backend/internal/models"
 )
 
-// Interface defines methods to interact with repository
 type ExamRepository interface {
 	GetByPatientID(patientID int) ([]models.Exam, error)
+	GetByID(examID int) (*models.Exam, error)
+	UpdateFileMetadata(examID int, s3Key string, fileSize int64, mimeType string) error
 }
 
-// Struct to manage dependencies
 type examRepository struct {
 	db *sql.DB
 }
 
-// Constructor to pass on dependencies
 func NewExamRepository(db *sql.DB) ExamRepository {
 	return &examRepository{db: db}
 }
 
 func (r *examRepository) GetByPatientID(patientID int) ([]models.Exam, error) {
-	exams := []models.Exam{}
-	query := `SELECT tipo, fecha FROM examenes WHERE paciente_id = $1`
+	query := `
+        SELECT id, paciente_id, consulta_id, tipo, fecha, s3_key, file_size, mime_type 
+        FROM examenes 
+        WHERE paciente_id = $1 
+        ORDER BY fecha DESC`
+
 	rows, err := r.db.Query(query, patientID)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
+	var exams []models.Exam
 	for rows.Next() {
 		var exam models.Exam
-		var date time.Time
-
 		err := rows.Scan(
+			&exam.ID,
+			&exam.PatientID,
+			&exam.ConsultaID,
 			&exam.Type,
-			&date,
+			&exam.Date,
+			&exam.S3Key,
+			&exam.FileSize,
+			&exam.MimeType,
 		)
 		if err != nil {
 			return nil, err
 		}
-		exam.Date = date
 
+		exam.SetHasFile() // Set the computed field
 		exams = append(exams, exam)
 	}
+
 	return exams, nil
+}
+
+func (r *examRepository) GetByID(examID int) (*models.Exam, error) {
+	query := `
+        SELECT id, paciente_id, consulta_id, tipo, fecha, s3_key, file_size, mime_type 
+        FROM examenes 
+        WHERE id = $1`
+
+	var exam models.Exam
+	err := r.db.QueryRow(query, examID).Scan(
+		&exam.ID,
+		&exam.PatientID,
+		&exam.ConsultaID,
+		&exam.Type,
+		&exam.Date,
+		&exam.S3Key,
+		&exam.FileSize,
+		&exam.MimeType,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	exam.SetHasFile()
+	return &exam, nil
+}
+
+func (r *examRepository) UpdateFileMetadata(examID int, s3Key string, fileSize int64, mimeType string) error {
+	query := `
+        UPDATE examenes 
+        SET s3_key = $1, file_size = $2, mime_type = $3 
+        WHERE id = $4`
+
+	_, err := r.db.Exec(query, s3Key, fileSize, mimeType, examID)
+	return err
 }

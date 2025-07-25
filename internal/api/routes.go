@@ -50,6 +50,7 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 	e.GET("/patients/:patientId/exams", config.ExamHandler.GetExamsByPatient)
 	e.POST("/exams/:examId/upload", config.ExamHandler.UploadPDF)
 	e.GET("/exams/:examId/download", config.ExamHandler.GetDownloadURL)
+	e.GET("/exams/pending", config.ExamHandler.GetPending)
 
 	// Route just to verify everything's up
 	e.GET("/", func(c echo.Context) error {

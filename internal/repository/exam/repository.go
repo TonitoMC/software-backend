@@ -2,6 +2,7 @@ package exam
 
 import (
 	"database/sql"
+	"fmt"
 
 	"software-backend/internal/models"
 )
@@ -10,6 +11,7 @@ type ExamRepository interface {
 	GetByPatientID(patientID int) ([]models.Exam, error)
 	GetByID(examID int) (*models.Exam, error)
 	UpdateFileMetadata(examID int, s3Key string, fileSize int64, mimeType string) error
+	GetPending() ([]*models.Exam, error)
 }
 
 type examRepository struct {
@@ -80,6 +82,46 @@ func (r *examRepository) GetByID(examID int) (*models.Exam, error) {
 
 	exam.SetHasFile()
 	return &exam, nil
+}
+
+func (r *examRepository) GetPending() ([]*models.Exam, error) {
+	query := `SELECT id, paciente_id, consulta_id, tipo, fecha, s3_key, file_size, mime_type
+						FROM examenes
+						WHERE consulta_id IS NULL
+						ORDER BY fecha ASC;
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	var exams []*models.Exam
+	for rows.Next() {
+		exam := &models.Exam{}
+
+		err := rows.Scan(
+			&exam.ID,
+			&exam.PatientID,
+			&exam.ConsultaID,
+			&exam.Type,
+			&exam.Date,
+			&exam.S3Key,
+			&exam.FileSize,
+			&exam.MimeType,
+		)
+		if err != nil {
+			fmt.Printf("Error scanning row for pending exam: %v\n", err)
+			return nil, err
+		}
+		exam.SetHasFile()
+		exams = append(exams, exam)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return exams, nil
 }
 
 func (r *examRepository) UpdateFileMetadata(examID int, s3Key string, fileSize int64, mimeType string) error {

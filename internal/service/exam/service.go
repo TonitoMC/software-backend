@@ -16,6 +16,7 @@ type ExamService interface {
 	GetByPatientID(patientID int) ([]models.Exam, error)
 	UploadPDF(examID int, file *multipart.FileHeader) error
 	GetDownloadURL(examID int) (string, error)
+	GetPending() ([]*models.Exam, error)
 }
 
 type examService struct {
@@ -82,4 +83,8 @@ func (s *examService) GetDownloadURL(examID int) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (s *examService) GetPending() ([]*models.Exam, error) {
+	return s.repo.GetPending()
 }

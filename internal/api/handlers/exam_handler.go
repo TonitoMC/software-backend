@@ -84,3 +84,14 @@ func (h *ExamHandler) GetDownloadURL(c echo.Context) error {
 		"download_url": url,
 	})
 }
+
+// GET /exams/pending
+func (h *ExamHandler) GetPending(c echo.Context) error {
+	exams, err := h.service.GetPending()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "internal server error",
+		})
+	}
+	return c.JSON(http.StatusOK, exams)
+}

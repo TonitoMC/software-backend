@@ -21,6 +21,7 @@ import (
 	consultationservice "software-backend/internal/service/consultation"
 	examservice "software-backend/internal/service/exam"
 	patientservice "software-backend/internal/service/patient"
+	s3Service "software-backend/internal/service/s3"
 	userservice "software-backend/internal/service/user"
 
 	"github.com/labstack/echo/v4"
@@ -66,8 +67,10 @@ func main() {
 	patientHandler := handlers.NewPatientHandler(patientService)
 
 	// Initialize exam dependencies
+	s3config := s3Service.NewS3Config()
+	s3service := s3Service.NewS3Service(s3config)
 	examRepo := exam.NewExamRepository(dbConn)
-	examService := examservice.NewExamService(examRepo)
+	examService := examservice.NewExamService(examRepo, s3service)
 	examHandler := handlers.NewExamHandler(examService)
 
 	// Initialize consultation dependencies

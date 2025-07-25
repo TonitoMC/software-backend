@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,28 +22,31 @@ type s3Service struct {
 	bucket string
 }
 
-func NewS3Service() S3Service {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+// NewS3Service now takes an *S3Config as an argument.
+func NewS3Service(cfg *S3Config) S3Service {
+	// Use the values from the provided S3Config
+	awsCfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			os.Getenv("AWS_ACCESS_KEY_ID"),
-			os.Getenv("AWS_SECRET_ACCESS_KEY"),
-			"")),
-		config.WithRegion(os.Getenv("AWS_REGION")),
+			cfg.AccessKeyID,
+			cfg.SecretAccessKey,
+			"", // Session token is not used for static credentials
+		)),
+		config.WithRegion(cfg.Region),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load AWS config: %v", err))
 	}
 
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		if endpoint := os.Getenv("S3_ENDPOINT"); endpoint != "" {
-			o.BaseEndpoint = aws.String(endpoint)
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		if cfg.Endpoint != "" { // Use cfg.Endpoint
+			o.BaseEndpoint = aws.String(cfg.Endpoint)
 			o.UsePathStyle = true // Required for MinIO
 		}
 	})
 
 	return &s3Service{
 		client: client,
-		bucket: os.Getenv("S3_BUCKET"),
+		bucket: cfg.BucketName, // Use cfg.BucketName
 	}
 }
 

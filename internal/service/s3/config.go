@@ -16,7 +16,7 @@ type S3Config struct {
 // with default values.
 func NewS3Config() *S3Config {
 	return &S3Config{
-		Endpoint:        getEnv("S3_ENDPOINT", "http://localhost:9000"),
+		Endpoint:        getEnv("S3_ENDPOINT", "http://minio:9000"),
 		AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", "minioadmin"),
 		SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
 		BucketName:      getEnv("S3_BUCKET", "patient-docs"),

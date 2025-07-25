@@ -2,6 +2,7 @@ package exam
 
 import (
 	"fmt"
+	"io"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
@@ -16,9 +17,16 @@ type ExamService interface {
 	GetByPatientID(patientID int) ([]models.Exam, error)
 	UploadPDF(examID int, file *multipart.FileHeader) error
 	GetDownloadURL(examID int) (string, error)
+	StreamFile(examID int) (io.ReadCloser, *FileMetadata, error) // Add this line
 	GetPending() ([]*models.Exam, error)
 }
 
+// Add this struct after the interface
+type FileMetadata struct {
+	FileName string
+	MimeType string
+	FileSize int64
+}
 type examService struct {
 	repo      repository.ExamRepository
 	s3Service s3service.S3Service
@@ -65,6 +73,30 @@ func (s *examService) UploadPDF(examID int, file *multipart.FileHeader) error {
 	}
 
 	return nil
+}
+
+func (s *examService) StreamFile(examID int) (io.ReadCloser, *FileMetadata, error) {
+	exam, err := s.repo.GetByID(examID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("exam not found: %w", err)
+	}
+
+	if !exam.S3Key.Valid || exam.S3Key.String == "" {
+		return nil, nil, fmt.Errorf("no file uploaded for this exam")
+	}
+
+	reader, err := s.s3Service.GetObject(exam.S3Key.String)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch file: %w", err)
+	}
+
+	metadata := &FileMetadata{
+		FileName: filepath.Base(exam.S3Key.String),
+		MimeType: "application/pdf",
+		FileSize: exam.FileSize.Int64,
+	}
+
+	return reader, metadata, nil
 }
 
 func (s *examService) GetDownloadURL(examID int) (string, error) {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -83,6 +84,40 @@ func (h *ExamHandler) GetDownloadURL(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"download_url": url,
 	})
+}
+
+func (h *ExamHandler) DownloadPDF(c echo.Context) error {
+	examID, err := strconv.Atoi(c.Param("examId"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid exam ID",
+		})
+	}
+
+	reader, metadata, err := h.service.StreamFile(examID)
+	if err != nil {
+		// Log the actual error
+		fmt.Printf("StreamFile failed: %v\n", err)
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": err.Error(),
+		})
+	}
+	defer reader.Close()
+
+	c.Response().Header().Set("Content-Type", metadata.MimeType)
+	c.Response().Header().Set(
+		"Content-Disposition",
+		`inline; filename="`+metadata.FileName+`"`,
+	)
+
+	// Add error handling for streaming
+	err = c.Stream(http.StatusOK, metadata.MimeType, reader)
+	if err != nil {
+		fmt.Printf("Streaming failed: %v\n", err)
+		return err
+	}
+
+	return nil
 }
 
 // GET /exams/pending

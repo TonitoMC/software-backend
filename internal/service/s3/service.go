@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 type S3Service interface {
 	UploadFile(key string, file *multipart.FileHeader) error
 	GeneratePresignedURL(key string, expiry time.Duration) (string, error)
+	GetObject(key string) (io.ReadCloser, error) // Add this line
 }
 
 type s3Service struct {
@@ -79,4 +81,15 @@ func (s *s3Service) GeneratePresignedURL(key string, expiry time.Duration) (stri
 	}
 
 	return request.URL, nil
+}
+
+func (s *s3Service) GetObject(key string) (io.ReadCloser, error) {
+	result, err := s.client.GetObject(context.Background(), &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.Body, nil
 }

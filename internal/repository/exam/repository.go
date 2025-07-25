@@ -87,7 +87,7 @@ func (r *examRepository) GetByID(examID int) (*models.Exam, error) {
 func (r *examRepository) GetPending() ([]*models.Exam, error) {
 	query := `SELECT id, paciente_id, consulta_id, tipo, fecha, s3_key, file_size, mime_type
 						FROM examenes
-						WHERE consulta_id IS NULL
+						WHERE s3_key IS NULL
 						ORDER BY fecha ASC;
 	`
 	rows, err := r.db.Query(query)

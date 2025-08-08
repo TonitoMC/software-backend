@@ -11,6 +11,7 @@ import (
 	"software-backend/internal/repository/appointment"
 	bh "software-backend/internal/repository/business_hour"
 	"software-backend/internal/repository/consultation"
+	"software-backend/internal/repository/diagnostic"
 	"software-backend/internal/repository/exam"
 	"software-backend/internal/repository/patient"
 	"software-backend/internal/repository/user"
@@ -19,6 +20,7 @@ import (
 	authservice "software-backend/internal/service/auth"
 	businesshourservice "software-backend/internal/service/businesshour"
 	consultationservice "software-backend/internal/service/consultation"
+	diagnosticService "software-backend/internal/service/diagnostic"
 	examservice "software-backend/internal/service/exam"
 	patientservice "software-backend/internal/service/patient"
 	s3Service "software-backend/internal/service/s3"
@@ -78,6 +80,9 @@ func main() {
 	consultationService := consultationservice.NewConsultationService(consultationRepo)
 	consultationHandler := handlers.NewConsultationHandler(consultationService)
 
+	diagnosticRepo := diagnostic.NewDiagnosticRepository(dbConn)
+	diagnosticService := diagnosticService.NewDiagnosticService(diagnosticRepo)
+	diagnosticHandler := handlers.NewDiagnosticHandler(diagnosticService)
 	// Configure app router with dependencies
 	routerConfig := &api.RouterConfig{
 		AuthHandler:          authHandler,
@@ -87,6 +92,7 @@ func main() {
 		BusinessHoursHandler: businessHoursHandler,
 		ExamHandler:          examHandler,
 		ConsultationHandler:  consultationHandler,
+		DiagnosticHandler:    diagnosticHandler,
 	}
 
 	// Creation + middleware setup

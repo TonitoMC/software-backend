@@ -17,6 +17,7 @@ type RouterConfig struct {
 	BusinessHoursHandler *handlers.BusinessHoursHandler
 	ExamHandler          *handlers.ExamHandler
 	ConsultationHandler  *handlers.ConsultationHandler
+	DiagnosticHandler    *handlers.DiagnosticHandler
 }
 
 // Sets up routes for the application
@@ -51,6 +52,9 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 	e.POST("/exams/:examId/upload", config.ExamHandler.UploadPDF)
 	e.GET("/exams/:examId/download", config.ExamHandler.DownloadPDF)
 	e.GET("/exams/pending", config.ExamHandler.GetPending)
+
+	e.GET("/consultations/:consultation_id/diagnostics", config.DiagnosticHandler.GetByConsultationID)
+	e.POST("/consultations/:consultation_id/diagnostics", config.DiagnosticHandler.CreateBatch)
 
 	// Route just to verify everything's up
 	e.GET("/", func(c echo.Context) error {

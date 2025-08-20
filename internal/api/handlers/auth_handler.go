@@ -2,21 +2,18 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
+	"software-backend/internal/middleware"
 	service "software-backend/internal/service/auth"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
-// Struct to manage dependencies
 type AuthHandler struct {
 	authService service.AuthService
 	jwtSecret   string
 }
 
-// Constructor to pass on dependencies
 func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 	return &AuthHandler{
 		authService: svc,
@@ -24,18 +21,23 @@ func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 	}
 }
 
-// Req for login
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// Response for login
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token string   `json:"token"`
+	User  UserInfo `json:"user"`
 }
 
-// Handle login requests
+type UserInfo struct {
+	ID       int      `json:"id"`
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	Roles    []string `json:"roles"`
+}
+
 func (h *AuthHandler) Login(c echo.Context) error {
 	req := new(LoginRequest)
 	if err := c.Bind(req); err != nil {
@@ -43,23 +45,90 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	}
 
 	// Auth service verifies credentials
-	userID, err := h.authService.AuthenticateUser(req.Username, req.Password)
+	user, err := h.authService.AuthenticateUser(req.Username, req.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}
 
-	// If auth is successful, create a JWT
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+	// Get user roles (you'll need to implement this in your auth service)
+	roles, err := h.authService.GetUserRoles(user.ID)
+	if err != nil {
+		// Default to basic user role if no roles found
+		roles = []string{"user"}
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	signedToken, err := token.SignedString([]byte(h.jwtSecret))
+	// Create JWT with roles
+	token, err := middleware.GenerateToken(user, roles)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create token")
 	}
 
-	return c.JSON(http.StatusOK, LoginResponse{Token: signedToken})
+	userInfo := UserInfo{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Roles:    roles,
+	}
+
+	return c.JSON(http.StatusOK, LoginResponse{
+		Token: token,
+		User:  userInfo,
+	})
+}
+
+func (h *AuthHandler) GetProfile(c echo.Context) error {
+	userID, ok := c.Get("user_id").(int)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user ID")
+	}
+
+	_, ok = c.Get("username").(string)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid username")
+	}
+
+	roles, ok := c.Get("roles").([]string)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid roles")
+	}
+
+	// Optionally fetch fresh user data
+	user, err := h.authService.GetUserByID(userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "User not found")
+	}
+
+	userInfo := UserInfo{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Roles:    roles,
+	}
+
+	return c.JSON(http.StatusOK, userInfo)
+}
+
+func (h *AuthHandler) RefreshToken(c echo.Context) error {
+	userID, ok := c.Get("user_id").(int)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid user ID")
+	}
+
+	// Get fresh user data and roles
+	user, err := h.authService.GetUserByID(userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "User not found")
+	}
+
+	roles, err := h.authService.GetUserRoles(userID)
+	if err != nil {
+		roles = []string{"user"}
+	}
+
+	token, err := middleware.GenerateToken(user, roles)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create token")
+	}
+
+	return c.JSON(http.StatusOK, LoginResponse{Token: token})
 }

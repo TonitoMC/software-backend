@@ -20,13 +20,6 @@ func TestUserRegistrationFlow(t *testing.T) {
 	// Initialize test setup
 	initTest()
 
-	fmt.Printf("testApp is nil after initTest: %v\n", testApp == nil)
-
-	// Add nil check
-	if testApp == nil {
-		t.Fatal("testApp is nil - initTest failed")
-	}
-
 	registerReq := map[string]string{
 		"email":    "test@example.com",
 		"username": "testuser",
@@ -38,10 +31,7 @@ func TestUserRegistrationFlow(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
-	fmt.Println("About to call testApp.ServeHTTP")
 	testApp.ServeHTTP(rec, req)
-	fmt.Printf("Response code: %d\n", rec.Code)
-	fmt.Printf("Response body: %s\n", rec.Body.String())
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
 

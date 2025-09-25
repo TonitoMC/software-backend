@@ -20,6 +20,7 @@ var (
 type UserRepository interface {
 	GetUserByID(id int) (*models.User, error)
 	GetUserByUsername(username string) (*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
 	CreateUser(user models.User) (*models.User, error)
 }
 
@@ -69,6 +70,21 @@ func (r *userRepository) GetUserByUsername(username string) (*models.User, error
 		return nil, fmt.Errorf("repository: failed to get user by ID %s: %w", username, err)
 	}
 
+	return user, nil
+}
+
+// Get a user by email (case-insensitive)
+func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
+	// Build query (compare lower-cased)
+	query := `SELECT id, username, password_hash, correo FROM usuarios WHERE lower(correo) = lower($1)`
+
+	user := &models.User{}
+	if err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("repository: failed to get user by email %s: %w", email, err)
+	}
 	return user, nil
 }
 

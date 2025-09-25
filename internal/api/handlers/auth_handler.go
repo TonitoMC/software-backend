@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"software-backend/internal/middleware"
 	service "software-backend/internal/service/auth"
@@ -22,7 +23,7 @@ func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 }
 
 type LoginRequest struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -44,8 +45,14 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid login request body")
 	}
 
-	// Auth service verifies credentials
-	user, err := h.authService.AuthenticateUser(req.Username, req.Password)
+	// Normalize email
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" || req.Password == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Email and password are required")
+	}
+
+	// Auth service verifies credentials using email
+	user, err := h.authService.AuthenticateUserByEmail(email, req.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}

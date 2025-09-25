@@ -17,7 +17,7 @@ var (
 
 // Interface holds the expected methods from the service
 type AuthService interface {
-	AuthenticateUser(username, password string) (*models.User, error)
+	AuthenticateUserByEmail(email, password string) (*models.User, error)
 	GetUserByID(id int) (*models.User, error)
 	GetUserRoles(userID int) ([]string, error)
 }
@@ -34,10 +34,11 @@ func NewAuthService(userRepo user.UserRepository) AuthService {
 	}
 }
 
-// Verify user credentials against database and return full user
-func (s *authService) AuthenticateUser(username, password string) (*models.User, error) {
-	// Get user by username via repository
-	user, err := s.userRepo.GetUserByUsername(username)
+// Verify user credentials against database and return full user using email
+func (s *authService) AuthenticateUserByEmail(email, password string) (*models.User, error) {
+	// Normalize email: trim + lower
+	// The repository compares case-insensitively as well
+	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}

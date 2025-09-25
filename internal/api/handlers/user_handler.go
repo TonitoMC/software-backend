@@ -40,13 +40,14 @@ func (h *UserHandler) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid registration request body")
 	}
 
+	// Normalize will happen in service, but light trim here is okay too
 	createdUser, err := h.userService.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidInput) {
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		if errors.Is(err, repository.ErrDuplicateUsername) {
-			return echo.NewHTTPError(http.StatusConflict, err.Error())
+			return echo.NewHTTPError(http.StatusConflict, "email already exists")
 		}
 		if errors.Is(err, service.ErrPasswordHashingFailed) {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to process password")

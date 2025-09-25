@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"strings"
 
 	"software-backend/internal/models"
 	repository "software-backend/internal/repository/user"
@@ -36,9 +37,19 @@ func NewUserService(userRepo repository.UserRepository) UserService {
 
 // Method to register a new user
 func (s *userService) RegisterUser(username, email, password string) (*models.User, error) {
+	// Normalize inputs
+	username = strings.TrimSpace(username)
+	email = strings.ToLower(strings.TrimSpace(email))
+	password = strings.TrimSpace(password)
+
 	// Basic input validation
-	if username == "" || password == "" {
+	if username == "" || password == "" || email == "" {
 		return nil, ErrInvalidInput
+	}
+
+	// Check duplicate by email
+	if existing, err := s.userRepo.GetUserByEmail(email); err == nil && existing != nil && existing.ID > 0 {
+		return nil, repository.ErrDuplicateUsername // reuse duplicate error; consider new ErrDuplicateEmail
 	}
 
 	// Hash password for storage, Bcrypt adds salt

@@ -42,32 +42,32 @@ type UserInfo struct {
 func (h *AuthHandler) Login(c echo.Context) error {
 	req := new(LoginRequest)
 	if err := c.Bind(req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid login request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Cuerpo de solicitud de inicio de sesión inválido")
 	}
 
 	// Normalize email
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	if email == "" || req.Password == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "Email and password are required")
+		return echo.NewHTTPError(http.StatusBadRequest, "El correo electrónico y la contraseña son obligatorios")
 	}
 
 	// Auth service verifies credentials using email
 	user, err := h.authService.AuthenticateUserByEmail(email, req.Password)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
+		return echo.NewHTTPError(http.StatusUnauthorized, "Credenciales inválidas")
 	}
 
 	// Get user roles (you'll need to implement this in your auth service)
 	roles, err := h.authService.GetUserRoles(user.ID)
 	if err != nil {
-		// Default to basic user role if no roles found
+		// Predeterminar rol básico si no se encuentran roles
 		roles = []string{"user"}
 	}
 
 	// Create JWT with roles
 	token, err := middleware.GenerateToken(user, roles)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create token")
+		return echo.NewHTTPError(http.StatusInternalServerError, "No se pudo crear el token")
 	}
 
 	userInfo := UserInfo{

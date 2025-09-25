@@ -68,6 +68,9 @@ func (s *userService) RegisterUser(username, email, password string) (*models.Us
 	// Create User in DB via repository
 	createdUser, err := s.userRepo.CreateUser(newUser)
 	if err != nil {
+		if errors.Is(err, repository.ErrDuplicateUsername) {
+			return nil, repository.ErrDuplicateUsername
+		}
 		return nil, errors.New("failed to create user account")
 	}
 

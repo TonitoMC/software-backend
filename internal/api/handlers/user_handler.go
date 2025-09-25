@@ -37,22 +37,22 @@ type RegisterResponse struct {
 func (h *UserHandler) Register(c echo.Context) error {
 	req := new(RegisterRequest)
 	if err := c.Bind(req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid registration request body")
+		return echo.NewHTTPError(http.StatusBadRequest, "Cuerpo de solicitud de registro inválido")
 	}
 
 	// Normalize will happen in service, but light trim here is okay too
 	createdUser, err := h.userService.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidInput) {
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return echo.NewHTTPError(http.StatusBadRequest, "Datos de entrada inválidos")
 		}
 		if errors.Is(err, repository.ErrDuplicateUsername) {
-			return echo.NewHTTPError(http.StatusConflict, "email already exists")
+			return echo.NewHTTPError(http.StatusConflict, "El correo electrónico ya está registrado")
 		}
 		if errors.Is(err, service.ErrPasswordHashingFailed) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to process password")
+			return echo.NewHTTPError(http.StatusInternalServerError, "No se pudo procesar la contraseña")
 		}
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to register user")
+		return echo.NewHTTPError(http.StatusInternalServerError, "No se pudo registrar al usuario")
 	}
 
 	// Assign default role to new user

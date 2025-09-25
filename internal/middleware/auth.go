@@ -33,7 +33,7 @@ func JWTAuth() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			auth := c.Request().Header.Get("Authorization")
 			if auth == "" {
-				return echo.NewHTTPError(http.StatusUnauthorized, "missing token")
+				return echo.NewHTTPError(http.StatusUnauthorized, "Falta el token de autenticación")
 			}
 
 			tokenString := strings.Replace(auth, "Bearer ", "", 1)
@@ -44,7 +44,7 @@ func JWTAuth() echo.MiddlewareFunc {
 				})
 
 			if err != nil || !token.Valid {
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+				return echo.NewHTTPError(http.StatusUnauthorized, "Token inválido")
 			}
 
 			claims := token.Claims.(*models.JWTClaims)
@@ -62,7 +62,7 @@ func RequireRole(allowedRoles ...string) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			userRoles, ok := c.Get("roles").([]string)
 			if !ok {
-				return echo.NewHTTPError(http.StatusUnauthorized, "no roles found")
+				return echo.NewHTTPError(http.StatusUnauthorized, "No se encontraron roles para el usuario")
 			}
 
 			// Check if user has any of the allowed roles
@@ -74,7 +74,7 @@ func RequireRole(allowedRoles ...string) echo.MiddlewareFunc {
 				}
 			}
 
-			return echo.NewHTTPError(http.StatusForbidden, "insufficient permissions")
+			return echo.NewHTTPError(http.StatusForbidden, "Permisos insuficientes")
 		}
 	}
 }

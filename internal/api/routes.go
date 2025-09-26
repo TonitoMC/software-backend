@@ -18,6 +18,7 @@ type RouterConfig struct {
 	ExamHandler          *handlers.ExamHandler
 	ConsultationHandler  *handlers.ConsultationHandler
 	DiagnosticHandler    *handlers.DiagnosticHandler
+	QuestionnaireHandler *handlers.QuestionnaireHandler
 }
 
 // Sets up routes for the application
@@ -55,7 +56,16 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 
 	e.GET("/consultations/:consultation_id/diagnostics", config.DiagnosticHandler.GetByConsultationID)
 	e.POST("/consultations/:consultation_id/diagnostics", config.DiagnosticHandler.CreateBatch)
+	// New consultation routes
+	e.POST("/api/consultations", config.ConsultationHandler.Create)
+	e.GET("/api/consultations/:id", config.ConsultationHandler.GetByID)
+	e.GET("/api/consultations/:id/details", config.ConsultationHandler.GetWithDetails)
+	e.PUT("/api/consultations/:id", config.ConsultationHandler.Update)
+	e.DELETE("/api/consultations/:id", config.ConsultationHandler.Delete)
 
+	// Questionnaire routes
+	e.GET("/api/questionnaires", config.QuestionnaireHandler.GetActive)
+	e.GET("/api/questionnaires/:id/questions", config.QuestionnaireHandler.GetWithQuestions)
 	// Route just to verify everything's up
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to the Medical App API!")

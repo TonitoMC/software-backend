@@ -14,6 +14,7 @@ import (
 	"software-backend/internal/repository/diagnostic"
 	"software-backend/internal/repository/exam"
 	"software-backend/internal/repository/patient"
+	"software-backend/internal/repository/questionnaire"
 	"software-backend/internal/repository/user"
 
 	appointmentservice "software-backend/internal/service/appointment"
@@ -23,6 +24,7 @@ import (
 	diagnosticService "software-backend/internal/service/diagnostic"
 	examservice "software-backend/internal/service/exam"
 	patientservice "software-backend/internal/service/patient"
+	questionnaireservice "software-backend/internal/service/questionnaire"
 	s3Service "software-backend/internal/service/s3"
 	userservice "software-backend/internal/service/user"
 
@@ -75,14 +77,18 @@ func main() {
 	examService := examservice.NewExamService(examRepo, s3service)
 	examHandler := handlers.NewExamHandler(examService)
 
-	// Initialize consultation dependencies
-	consultationRepo := consultation.NewConsultationRepository(dbConn)
-	consultationService := consultationservice.NewConsultationService(consultationRepo)
-	consultationHandler := handlers.NewConsultationHandler(consultationService)
-
 	diagnosticRepo := diagnostic.NewDiagnosticRepository(dbConn)
 	diagnosticService := diagnosticService.NewDiagnosticService(diagnosticRepo)
 	diagnosticHandler := handlers.NewDiagnosticHandler(diagnosticService)
+	questionnaireRepo := questionnaire.NewQuestionnaireRepository(dbConn)
+	questionnaireService := questionnaireservice.NewQuestionnaireService(questionnaireRepo)
+	questionnaireHandler := handlers.NewQuestionnaireHandler(questionnaireService)
+
+	// Initialize consultation dependencies
+	consultationRepo := consultation.NewConsultationRepository(dbConn)
+	consultationService := consultationservice.NewConsultationService(consultationRepo, diagnosticRepo, questionnaireService)
+	consultationHandler := handlers.NewConsultationHandler(consultationService)
+
 	// Configure app router with dependencies
 	routerConfig := &api.RouterConfig{
 		AuthHandler:          authHandler,
@@ -93,6 +99,7 @@ func main() {
 		ExamHandler:          examHandler,
 		ConsultationHandler:  consultationHandler,
 		DiagnosticHandler:    diagnosticHandler,
+		QuestionnaireHandler: questionnaireHandler,
 	}
 
 	// Creation + middleware setup

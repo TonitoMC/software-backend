@@ -66,6 +66,13 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 	// Questionnaire routes
 	e.GET("/api/questionnaires", config.QuestionnaireHandler.GetActive)
 	e.GET("/api/questionnaires/:id/questions", config.QuestionnaireHandler.GetWithQuestions)
+	// Questionnaire routes
+	e.GET("/api/questionnaires", config.QuestionnaireHandler.GetActive)
+	e.GET("/api/questionnaires/all", config.QuestionnaireHandler.GetAll)
+	e.GET("/api/questionnaires/:id/questions", config.QuestionnaireHandler.GetWithQuestions)
+	e.PUT("/api/questionnaires/:id", config.QuestionnaireHandler.Update)
+	e.PATCH("/api/questionnaires/:id/active", config.QuestionnaireHandler.SetActive)
+
 	// Route just to verify everything's up
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to the Medical App API!")

@@ -10,6 +10,9 @@ type QuestionnaireRepository interface {
 	GetActive() ([]models.Questionnaire, error)
 	GetWithQuestions(id int) (*models.QuestionnaireWithQuestions, error)
 	GetByID(id int) (*models.Questionnaire, error)
+	GetAll() ([]models.Questionnaire, error)
+	Update(id int, questionnaire *models.QuestionnaireUpdate) error
+	SetActive(id int, active bool) error
 }
 
 type questionnaireRepository struct {
@@ -111,4 +114,55 @@ func (r *questionnaireRepository) GetWithQuestions(id int) (*models.Questionnair
 		Questionnaire: *questionnaire,
 		Questions:     questions,
 	}, nil
+}
+
+// Add these methods to the existing questionnaireRepository struct
+
+func (r *questionnaireRepository) GetAll() ([]models.Questionnaire, error) {
+	query := `
+		SELECT id, nombre, version, activo
+		FROM cuestionarios 
+		ORDER BY nombre, version DESC`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var questionnaires []models.Questionnaire
+	for rows.Next() {
+		var q models.Questionnaire
+		err := rows.Scan(
+			&q.ID,
+			&q.Name,
+			&q.Version,
+			&q.Active,
+		)
+		if err != nil {
+			return nil, err
+		}
+		questionnaires = append(questionnaires, q)
+	}
+	return questionnaires, nil
+}
+
+func (r *questionnaireRepository) Update(id int, questionnaire *models.QuestionnaireUpdate) error {
+	query := `
+		UPDATE cuestionarios 
+		SET nombre = $2, version = $3
+		WHERE id = $1`
+
+	_, err := r.db.Exec(query, id, questionnaire.Name, questionnaire.Version)
+	return err
+}
+
+func (r *questionnaireRepository) SetActive(id int, active bool) error {
+	query := `
+		UPDATE cuestionarios 
+		SET activo = $2
+		WHERE id = $1`
+
+	_, err := r.db.Exec(query, id, active)
+	return err
 }

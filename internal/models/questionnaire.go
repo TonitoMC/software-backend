@@ -24,3 +24,9 @@ type QuestionnaireWithQuestions struct {
 	Questionnaire
 	Questions []QuestionWithOrder `json:"questions"`
 }
+
+// Add this to your models package
+type QuestionnaireUpdate struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}

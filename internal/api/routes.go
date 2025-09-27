@@ -1,0 +1,80 @@
+package api
+
+import (
+	"net/http"
+
+	"software-backend/internal/api/handlers"
+
+	"github.com/labstack/echo/v4"
+)
+
+// Set up handlers & other dependencies
+type RouterConfig struct {
+	AuthHandler          *handlers.AuthHandler
+	UserHandler          *handlers.UserHandler
+	AppointmentHandler   *handlers.AppointmentHandler
+	PatientHandler       *handlers.PatientHandler
+	BusinessHoursHandler *handlers.BusinessHoursHandler
+	ExamHandler          *handlers.ExamHandler
+	ConsultationHandler  *handlers.ConsultationHandler
+	DiagnosticHandler    *handlers.DiagnosticHandler
+	QuestionnaireHandler *handlers.QuestionnaireHandler
+}
+
+// Sets up routes for the application
+func SetupRoutes(e *echo.Echo, config *RouterConfig) {
+	// Health Check
+	e.GET("/healthz", func(c echo.Context) error {
+		return c.String(200, "ok")
+	})
+	e.POST("/login", config.AuthHandler.Login)
+	e.POST("/register", config.UserHandler.Register)
+
+	// Apointment routes, some overlap but will be fixed for later versions
+	e.GET("/appointments", config.AppointmentHandler.GetAppointmentsInDateRange)
+	e.GET("/appointments/today", config.AppointmentHandler.GetTodaysAppointments)
+	e.GET("/appointments/month", config.AppointmentHandler.GetAppointmentsForMonth)
+	e.GET("appointments/day", config.AppointmentHandler.GetAppointmentsForDate)
+	e.DELETE("/appointments/:id", config.AppointmentHandler.DeleteAppointment)
+	e.PUT("/appointments/:id", config.AppointmentHandler.UpdateAppointment)
+	e.POST("/appointments", config.AppointmentHandler.CreateAppointment)
+
+	// Patient routes
+	e.GET("/patients/search", config.PatientHandler.SearchPatients)
+	e.GET("/patients/:id", config.PatientHandler.GetPatient)
+
+	// Business hours routes
+	e.GET("/business-hours", config.BusinessHoursHandler.GetBusinessHours)
+
+	// Consultation routes
+	e.GET("/consultations/patient/:patient_id", config.ConsultationHandler.GetByPatientID)
+
+	e.GET("/patients/:patientId/exams", config.ExamHandler.GetExamsByPatient)
+	e.POST("/exams/:examId/upload", config.ExamHandler.UploadPDF)
+	e.GET("/exams/:examId/download", config.ExamHandler.DownloadPDF)
+	e.GET("/exams/pending", config.ExamHandler.GetPending)
+
+	e.GET("/consultations/:consultation_id/diagnostics", config.DiagnosticHandler.GetByConsultationID)
+	e.POST("/consultations/:consultation_id/diagnostics", config.DiagnosticHandler.CreateBatch)
+	// New consultation routes
+	e.POST("/api/consultations", config.ConsultationHandler.Create)
+	e.GET("/api/consultations/:id", config.ConsultationHandler.GetByID)
+	e.GET("/api/consultations/:id/details", config.ConsultationHandler.GetWithDetails)
+	e.PUT("/api/consultations/:id", config.ConsultationHandler.Update)
+	e.DELETE("/api/consultations/:id", config.ConsultationHandler.Delete)
+
+	// Questionnaire routes
+	e.GET("/api/questionnaires", config.QuestionnaireHandler.GetActive)
+	e.GET("/api/questionnaires/:id/questions", config.QuestionnaireHandler.GetWithQuestions)
+	// Questionnaire routes
+	e.GET("/api/questionnaires", config.QuestionnaireHandler.GetActive)
+	e.GET("/api/questionnaires/all", config.QuestionnaireHandler.GetAll)
+	e.GET("/api/questionnaires/:id/questions", config.QuestionnaireHandler.GetWithQuestions)
+	e.PUT("/api/questionnaires/:id", config.QuestionnaireHandler.Update)
+	e.PATCH("/api/questionnaires/:id/active", config.QuestionnaireHandler.SetActive)
+
+	// Route just to verify everything's up
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Welcome to the Medical App API!")
+	})
+}

@@ -67,7 +67,26 @@ func (r *userRepository) GetUserByUsername(username string) (*models.User, error
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
-		return nil, fmt.Errorf("repository: failed to get user by ID %s: %w", username, err)
+		return nil, fmt.Errorf("repository: failed to get user by username %s: %w", username, err)
+	}
+
+	return user, nil
+}
+
+// Get a user by email
+func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
+	// Build query
+	query := `SELECT id, username, password_hash, correo FROM usuarios WHERE correo = $1`
+
+	// Create model
+	user := &models.User{}
+
+	// Extract query into user, if unable return error
+	if err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("repository: failed to get user by email %s: %w", email, err)
 	}
 
 	return user, nil

@@ -23,6 +23,7 @@ func NewAuthHandler(svc service.AuthService, jwtSecret string) *AuthHandler {
 
 type LoginRequest struct {
 	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -44,8 +45,14 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid login request body")
 	}
 
+	// Use email if provided, otherwise use username
+	identifier := req.Email
+	if identifier == "" {
+		identifier = req.Username
+	}
+
 	// Auth service verifies credentials
-	user, err := h.authService.AuthenticateUser(req.Username, req.Password)
+	user, err := h.authService.AuthenticateUser(identifier, req.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}

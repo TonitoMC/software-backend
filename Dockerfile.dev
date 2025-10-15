@@ -7,6 +7,8 @@ RUN go install github.com/air-verse/air@v1.61.5
 COPY go.mod go.sum ./
 RUN go mod download
 
+ENV GOFLAGS=-buildvcs=false
+
 EXPOSE 4000
 
 CMD ["air", "-c", ".air.toml"]

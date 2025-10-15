@@ -71,15 +71,15 @@ func (s *whatsAppService) SendReminder(ctx context.Context, appointment *models.
 	}
 
 	// Format appointment date and time
-	appointmentDate := appointment.Date.Format("02/01/2006")
-	appointmentTime := appointment.Date.Format("15:04")
+	appointmentDate := appointment.Start.Format("02/01/2006")
+	appointmentTime := appointment.Start.Format("15:04")
 
 	// Create WhatsApp client
 	client := whatsapp.NewClient(config)
 
 	// Send the message
 	response, err := client.SendTemplateMessage(ctx, phoneNumber, patient.Name, appointmentDate, appointmentTime)
-	
+
 	notification := &models.WhatsAppNotification{
 		AppointmentID: appointment.ID,
 		PatientID:     patient.ID,
@@ -119,7 +119,7 @@ func (s *whatsAppService) CheckAndScheduleReminders(ctx context.Context) error {
 	}
 
 	now := time.Now()
-	
+
 	// Define time windows for checking upcoming appointments
 	var timeWindows []struct {
 		start       time.Time
@@ -166,7 +166,7 @@ func (s *whatsAppService) CheckAndScheduleReminders(ctx context.Context) error {
 
 	// For each time window, find appointments and schedule reminders
 	for _, window := range timeWindows {
-		appointments, err := s.appointmentRepo.GetAppointmentsByDateRange(ctx, window.start, window.end)
+		appointments, err := s.appointmentRepo.ListAppointmentsInDateRange(window.start, window.end)
 		if err != nil {
 			log.Printf("Error fetching appointments for %s reminders: %v", window.messageType, err)
 			continue
@@ -188,14 +188,15 @@ func (s *whatsAppService) CheckAndScheduleReminders(ctx context.Context) error {
 			}
 
 			// Get patient details
-			patient, err := s.patientRepo.GetPatientByID(ctx, appointment.PatientID)
+			patient, err := s.patientRepo.GetPatientByID(appointment.PatientID)
 			if err != nil {
 				log.Printf("Error fetching patient %d: %v", appointment.PatientID, err)
 				continue
 			}
 
-			// Send reminder
-			if err := s.SendReminder(ctx, appointment, patient, window.messageType); err != nil {
+			// Send reminder (convert to pointer)
+			apptPtr := &appointment
+			if err := s.SendReminder(ctx, apptPtr, patient, window.messageType); err != nil {
 				log.Printf("Error sending %s reminder for appointment %d: %v", window.messageType, appointment.ID, err)
 			} else {
 				log.Printf("Successfully sent %s reminder for appointment %d to patient %s", window.messageType, appointment.ID, patient.Name)
@@ -215,13 +216,13 @@ func (s *whatsAppService) ProcessPendingReminders(ctx context.Context) error {
 
 	for _, notification := range notifications {
 		// Get appointment and patient
-		appointment, err := s.appointmentRepo.GetAppointmentByID(ctx, notification.AppointmentID)
+		appointment, err := s.appointmentRepo.GetAppointmentByID(notification.AppointmentID)
 		if err != nil {
 			log.Printf("Error fetching appointment %d: %v", notification.AppointmentID, err)
 			continue
 		}
 
-		patient, err := s.patientRepo.GetPatientByID(ctx, appointment.PatientID)
+		patient, err := s.patientRepo.GetPatientByID(appointment.PatientID)
 		if err != nil {
 			log.Printf("Error fetching patient %d: %v", appointment.PatientID, err)
 			continue

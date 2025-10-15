@@ -28,7 +28,7 @@ func NewReminderScheduler(whatsAppService service.WhatsAppService, interval time
 func (s *ReminderScheduler) Start() {
 	log.Println("Starting WhatsApp reminder scheduler...")
 	ticker := time.NewTicker(s.interval)
-	
+
 	// Run immediately on start
 	s.runCheck()
 

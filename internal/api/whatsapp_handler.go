@@ -23,10 +23,10 @@ func (h *WhatsAppHandler) RegisterRoutes(e *echo.Group) {
 	// Admin routes - protected
 	adminGroup := e.Group("/whatsapp")
 	adminGroup.Use(middleware.JWTAuth())
-	
+
 	adminGroup.GET("/config", h.GetConfig)
 	adminGroup.PUT("/config", h.UpdateConfig)
-	
+
 	// Webhook - unprotected (verified by Meta)
 	e.GET("/whatsapp/webhook", h.VerifyWebhook)
 	e.POST("/whatsapp/webhook", h.HandleWebhook)

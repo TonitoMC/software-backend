@@ -35,11 +35,15 @@ func NewAuthService(userRepo user.UserRepository) AuthService {
 }
 
 // Verify user credentials against database and return full user
-func (s *authService) AuthenticateUser(username, password string) (*models.User, error) {
-	// Get user by username via repository
-	user, err := s.userRepo.GetUserByUsername(username)
+func (s *authService) AuthenticateUser(usernameOrEmail, password string) (*models.User, error) {
+	// Try to get user by username first
+	user, err := s.userRepo.GetUserByUsername(usernameOrEmail)
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		// If not found by username, try by email
+		user, err = s.userRepo.GetUserByEmail(usernameOrEmail)
+		if err != nil {
+			return nil, ErrInvalidCredentials
+		}
 	}
 
 	// Compare password using BCrypt

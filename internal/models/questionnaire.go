@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // models/questionnaire.go
 type Questionnaire struct {
 	ID      int    `json:"id"`
@@ -29,4 +31,21 @@ type QuestionnaireWithQuestions struct {
 type QuestionnaireUpdate struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
+}
+
+// Used for incoming frontend JSON
+type ConsultationFromQuestionnaireRequest struct {
+	PatientID       int `json:"patientId"`
+	QuestionnaireID int `json:"questionnaireId"`
+
+	Reason  string                         `json:"reason"` // ✅ Add this
+	Date    time.Time                      `json:"date"`
+	Answers map[string]QuestionnaireAnswer `json:"answers"`
+}
+
+type QuestionnaireAnswer struct {
+	OD      interface{} `json:"od,omitempty"`
+	OI      interface{} `json:"oi,omitempty"`
+	Value   interface{} `json:"value,omitempty"`
+	Comment *string     `json:"comment,omitempty"`
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"software-backend/internal/models"
 	service "software-backend/internal/service/consultation"
 
 	"github.com/labstack/echo/v4"
@@ -18,7 +19,10 @@ func NewConsultationHandler(service service.ConsultationService) *ConsultationHa
 	return &ConsultationHandler{service: service}
 }
 
-// Existing endpoint - unchanged
+// ----------------------------------------------------
+// Existing endpoints
+// ----------------------------------------------------
+
 func (h *ConsultationHandler) GetByPatientID(c echo.Context) error {
 	patientID := c.Param("patient_id")
 	id, err := strconv.Atoi(patientID)
@@ -32,7 +36,6 @@ func (h *ConsultationHandler) GetByPatientID(c echo.Context) error {
 	return c.JSON(http.StatusOK, consultations)
 }
 
-// New endpoints
 func (h *ConsultationHandler) Create(c echo.Context) error {
 	var req service.CreateConsultationRequest
 	if err := c.Bind(&req); err != nil {
@@ -62,15 +65,12 @@ func (h *ConsultationHandler) GetByID(c echo.Context) error {
 }
 
 func (h *ConsultationHandler) GetWithDetails(c echo.Context) error {
-	fmt.Println("DEBUG: GetWithDetails handler called") // Add this debug line
+	fmt.Println("DEBUG: GetWithDetails handler called")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid consultation ID"})
 	}
 
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid consultation ID"})
-	}
 	consultation, err := h.service.GetWithDetails(id)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "consultation not found"})
@@ -110,4 +110,30 @@ func (h *ConsultationHandler) Delete(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusNoContent, nil)
+}
+
+// ----------------------------------------------------
+// New endpoint: CreateFromQuestionnaire
+// ----------------------------------------------------
+//
+// Receives a JSON body like:
+//
+//	{
+//	  "patientId": 1,
+//	  "questionnaireId": 2,
+//	  "date": "2025-10-23T20:30:58.482Z",
+//	  "answers": { "1": { "od": "...", "oi": "...", "comment": "..." } }
+//	}
+func (h *ConsultationHandler) CreateFromQuestionnaire(c echo.Context) error {
+	var req models.ConsultationFromQuestionnaireRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	consultation, err := h.service.CreateFromQuestionnaire(req)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusCreated, consultation)
 }

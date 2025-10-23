@@ -15,6 +15,9 @@ type ConsultationRepository interface {
 	Update(id int, consultation models.Consultation) error
 	Delete(id int) error
 	GetComplete(id int) (*models.CompleteConsultation, error)
+
+	// New method for saving questionnaire answers
+	CreateConsultationQuestion(q models.ConsultationQuestion) (int, error)
 }
 
 type consultationRepository struct {
@@ -141,13 +144,19 @@ func (r *consultationRepository) GetComplete(id int) (*models.CompleteConsultati
 	}
 
 	// Get questionnaire answers
+
 	query := `
-		SELECT cp.id, cp.consulta_id, cp.pregunta_id, 
-		       cp.valores_textos, cp.valores_enteros, cp.valores_booleanos,
-		       cp.valor_texto, cp.valor_entero, cp.valor_booleano, cp.comentario
-		FROM consultas_preguntas cp
-		WHERE cp.consulta_id = $1
-		ORDER BY cp.pregunta_id`
+    SELECT 
+        cp.id, cp.consulta_id, cp.pregunta_id,
+        p.nombre AS question_name,
+        p.tipo AS question_type,
+        p.bilateral AS question_bilateral,
+        cp.valores_textos, cp.valores_enteros, cp.valores_booleanos,
+        cp.valor_texto, cp.valor_entero, cp.valor_booleano, cp.comentario
+    FROM consultas_preguntas cp
+    JOIN preguntas p ON p.id = cp.pregunta_id
+    WHERE cp.consulta_id = $1
+    ORDER BY p.id`
 
 	rows, err := r.db.Query(query, id)
 	if err != nil {
@@ -159,13 +168,13 @@ func (r *consultationRepository) GetComplete(id int) (*models.CompleteConsultati
 	for rows.Next() {
 		var q models.ConsultationQuestion
 
-		// Use pq arrays for scanning
 		var textValues pq.StringArray
 		var intValues pq.Int64Array
 		var boolValues pq.BoolArray
 
 		err := rows.Scan(
 			&q.ID, &q.ConsultationID, &q.QuestionID,
+			&q.QuestionName, &q.QuestionType, &q.Bilateral,
 			&textValues, &intValues, &boolValues,
 			&q.TextValue, &q.IntValue, &q.BoolValue, &q.Comment,
 		)
@@ -173,7 +182,6 @@ func (r *consultationRepository) GetComplete(id int) (*models.CompleteConsultati
 			return nil, err
 		}
 
-		// Convert pq arrays to Go slices
 		q.TextValues = []string(textValues)
 
 		for _, v := range intValues {
@@ -191,4 +199,37 @@ func (r *consultationRepository) GetComplete(id int) (*models.CompleteConsultati
 		Consultation: *consultation,
 		Questions:    questions,
 	}, nil
+}
+
+func (r *consultationRepository) CreateConsultationQuestion(q models.ConsultationQuestion) (int, error) {
+	query := `
+		INSERT INTO consultas_preguntas 
+			(consulta_id, pregunta_id, valores_textos, valores_enteros, valor_booleano, comentario)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id`
+
+	var id int
+	err := r.db.QueryRow(
+		query,
+		q.ConsultationID,
+		q.QuestionID,
+		pq.StringArray(q.TextValues), // ✅ properly stores text arrays
+		pq.Int64Array(intSliceToInt64(q.IntValues)), // ✅ properly stores integer arrays
+		q.BoolValue, // ✅ single bool value (can be nil)
+		q.Comment,   // ✅ single comment (can be nil)
+	).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+// helper to convert []int → []int64 for pq.Int64Array
+func intSliceToInt64(src []int) []int64 {
+	res := make([]int64, len(src))
+	for i, v := range src {
+		res[i] = int64(v)
+	}
+	return res
 }

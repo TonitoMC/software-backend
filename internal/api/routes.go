@@ -63,6 +63,8 @@ func SetupRoutes(e *echo.Echo, config *RouterConfig) {
 	e.PUT("/api/consultations/:id", config.ConsultationHandler.Update)
 	e.DELETE("/api/consultations/:id", config.ConsultationHandler.Delete)
 
+	e.POST("/api/consultations/from-questionnaire", config.ConsultationHandler.CreateFromQuestionnaire)
+
 	// Questionnaire routes
 	e.GET("/api/questionnaires", config.QuestionnaireHandler.GetActive)
 	e.GET("/api/questionnaires/:id/questions", config.QuestionnaireHandler.GetWithQuestions)

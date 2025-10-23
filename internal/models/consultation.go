@@ -14,6 +14,9 @@ type ConsultationQuestion struct {
 	ID             int      `json:"id"`
 	ConsultationID int      `json:"consultation_id"`
 	QuestionID     int      `json:"question_id"`
+	QuestionName   string   `json:"question_name,omitempty"`
+	QuestionType   string   `json:"question_type,omitempty"`
+	Bilateral      bool     `json:"bilateral,omitempty"`
 	TextValues     []string `json:"text_values,omitempty"`
 	IntValues      []int    `json:"int_values,omitempty"`
 	BoolValues     []bool   `json:"bool_values,omitempty"`

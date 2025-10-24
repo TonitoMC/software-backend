@@ -59,12 +59,12 @@ func (h *QuestionnaireHandler) Update(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid questionnaire id"})
 	}
 
-	var req models.QuestionnaireFullUpdate
+	var req models.QuestionnaireWithQuestions
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
 
-	if err := h.Service.UpdateFullQuestionnaire(id, &req); err != nil {
+	if err := h.service.UpdateQuestionnaire(id, &req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 

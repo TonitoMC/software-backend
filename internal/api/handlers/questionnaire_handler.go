@@ -56,16 +56,15 @@ func (h *QuestionnaireHandler) GetAll(c echo.Context) error {
 func (h *QuestionnaireHandler) Update(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid questionnaire ID"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid questionnaire id"})
 	}
 
-	var questionnaire models.QuestionnaireUpdate
-	if err := c.Bind(&questionnaire); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	var req models.QuestionnaireFullUpdate
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
 
-	if err := h.service.UpdateQuestionnaire(id, &questionnaire); err != nil {
-		c.Logger().Error("Error updating questionnaire: ", err)
+	if err := h.Service.UpdateFullQuestionnaire(id, &req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 

@@ -2,6 +2,7 @@ package questionnaire
 
 import (
 	"database/sql"
+	"fmt"
 
 	"software-backend/internal/models"
 )
@@ -13,6 +14,9 @@ type QuestionnaireRepository interface {
 	GetAll() ([]models.Questionnaire, error)
 	Update(id int, questionnaire *models.QuestionnaireUpdate) error
 	SetActive(id int, active bool) error
+
+	AttachQuestions(questionnaireID int, questions []models.QuestionWithOrder) error
+	Create(questionnaire *models.Questionnaire) (int, error)
 }
 
 type questionnaireRepository struct {
@@ -165,4 +169,46 @@ func (r *questionnaireRepository) SetActive(id int, active bool) error {
 
 	_, err := r.db.Exec(query, id, active)
 	return err
+}
+
+// Create inserts a new questionnaire record and returns its generated ID.
+func (r *questionnaireRepository) Create(questionnaire *models.Questionnaire) (int, error) {
+	query := `
+		INSERT INTO cuestionarios (nombre, version, activo)
+		VALUES ($1, $2, $3)
+		RETURNING id`
+
+	var newID int
+	err := r.db.QueryRow(query, questionnaire.Name, questionnaire.Version, questionnaire.Active).Scan(&newID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create questionnaire: %w", err)
+	}
+	return newID, nil
+}
+
+// AttachQuestions links a set of questions to a questionnaire version.
+func (r *questionnaireRepository) AttachQuestions(questionnaireID int, questions []models.QuestionWithOrder) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback() // safe rollback if commit fails
+	}()
+
+	// Insert each question relationship (no deletions, since versioning keeps history)
+	stmt := `
+		INSERT INTO preguntas_cuestionario (cuestionario_id, pregunta_id, orden)
+		VALUES ($1, $2, $3)`
+
+	for _, q := range questions {
+		if _, err := tx.Exec(stmt, questionnaireID, q.ID, q.Order); err != nil {
+			return fmt.Errorf("failed to attach question (ID %d): %w", q.ID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }
